@@ -1,0 +1,75 @@
+# Operating system
+.DS_Store
+Thumbs.db
+desktop.ini
+ehthumbs.db
+.Spotlight-V100
+.Trashes
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnp.*
+.cache/
+parcel-cache/
+dist/
+build/
+out/
+.next/
+.vite/
+.vercel/
+.tmp/
+.cache/
+*.tgz
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+logs/*.log
+
+# Editor/IDE
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.iml
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.coverage
+*.egg-info/
+dist/
+build/
+venv/
+env/
+ENV/
+pip-log.txt
+
+# Java / Gradle / Maven
+target/
+build/
+*.class
+*.war
+*.jar
+*.ear
+
+# Misc
+*.swp
+*.swo
+*.bak
+*.tmp
+*.temp
+Thumbs.db
