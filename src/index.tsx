@@ -9,7 +9,11 @@ registerRoot(() => {
     <Composition
       id="MyComp"
       component={MyVideo}
-      defaultProps={{ durationInFrames: 1800 }} // Fallback duration
+      defaultProps={{
+        script: [],
+        audioPath: '',
+        durationInFrames: 1800,
+      }}
       calculateMetadata={async ({ props }) => {
         return {
           durationInFrames: props.durationInFrames as number, // Explicitly cast to number

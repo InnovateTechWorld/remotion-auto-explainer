@@ -1,5 +1,5 @@
 import MyVideo from "./MyVideo";
 
-export const MyComposition = ({ script }: any) => {
-  return <MyVideo script={script} />;
+export const MyComposition = ({ script, audioPath }: any) => {
+  return <MyVideo script={script} audioPath={audioPath} />;
 };

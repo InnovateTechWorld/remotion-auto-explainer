@@ -1,40 +1,66 @@
 const { GoogleGenAI } = require("@google/genai");
 
 async function generate(userPrompt) {
-  const textPrompt = `Write a script to generate a 1-minute landscape educational video based on the following topic or prompt: "${userPrompt}".
+  const num_scenes = 4;
+  const target_duration = 120;
+  const words_per_scene = 50; // Fixed 50 words per scene for better pacing
 
-Generate a JSON array of 8 to 10 scenes. For each scene, include:
+  const section_prompts = [
+    "Scene 1: Introduction and Overview",
+    "Scene 2: Key Concepts and Details",
+    "Scene 3: Step-by-Step Explanation",
+    "Scene 4: Conclusion and Summary"
+  ];
 
-🔹 contentText
-Narration/dialogue for the scene based on the provided topic.
+  const script_prompt = `
+        Create a PRECISELY timed educational script for a ${target_duration}-second video based on: "${userPrompt}"
 
-Start the first scene with an engaging hook related to the topic.
+        CRITICAL VISUAL REQUIREMENTS:
+        - The GENERATED IMAGE is the PRIMARY educational visual element (85% of learning)
+        - On-screen TEXT is MINIMAL (3-5 words maximum per scene with emojis)
+        - The image description MUST be extremely detailed and comprehensive
+        - The image should be AS EXPLANATORY as the narration itself
+        - IMAGE FORMAT: Rectangular (16:9 aspect ratio), containing TWO side-by-side diagrams/figures
+        - INCLUDE TEXT LABELS in the image for clarity and educational value
+        - Each diagram should have descriptive text explaining key concepts
+        - BACKGROUND MUST BE STRICTLY PURE WHITE - no black, dark, or mixed backgrounds
+        - START MINIMAL: Scene 1 should show basic/simple concepts, then progressively add complexity
+        - MAKE IMAGES VERY CLEAR: Use thick, bold lines, large text, high contrast for maximum visibility
+        - PROGRESSIVE REVEAL: Each scene builds on the previous one visually
 
-Keep the entire contentText across all scenes within 300 to 400 words total.
+        STRICT REQUIREMENTS:
+        - Total duration: EXACTLY ${target_duration} seconds (under 2 minutes).
+        - Total scenes: EXACTLY ${num_scenes}.
+        - Each scene must have a narration of EXACTLY ${words_per_scene} words.
+        - Each scene MUST have on-screen text of EXACTLY 3-5 words (including 1-2 emojis).
+        - Natural flowing narration with EXAMPLES and clear explanations.
+        - NO EMOJIS in narration - but REQUIRED in on-screen text.
+        - Narration MUST directly describe and explain what is VISUALLY shown in the image.
 
-Make it engaging, informative, and ideal for educational video.
+        SECTION BREAKDOWN:
+        ${section_prompts.join('\n')}
 
-Use clear, educational language suitable for explainer videos.
+        PROGRESSIVE VISUAL COMPLEXITY:
+        - Scene 1: Show the MOST BASIC concept with minimal elements (1-2 key items)
+        - Scene 2: Add 1-2 more elements to build understanding
+        - Scene 3: Introduce more detailed relationships and processes
+        - Scene 4: Show full concept with all interconnected elements
 
-End the final scene with a call-to-action like: "What do you think? Share in the comments!"
+        CRITICAL:
+        1. Count words carefully. Each narration section must have the EXACT word count specified.
+        2. On-screen text MUST be 3-5 words maximum with emojis inside the text.
+        3. Drawing descriptions MUST be extremely detailed and comprehensive (the image is the main teacher!).
+        4. IMAGE MUST be rectangular with TWO side-by-side educational diagrams/figures.
+        5. INCLUDE clear text labels and explanations within the image itself.
+        6. BACKGROUND MUST BE PURE WHITE ONLY.
+        7. Ensure precise timing: The narration must be paced to fit EXACTLY within the scene duration for perfect sync.
+        8. The narration MUST directly explain and describe the specific visual elements shown in the corresponding drawing description - they must be perfectly complementary.
+        9. USE EXAMPLES in narration to make concepts clearer and more relatable.
+        10. START MINIMAL: Each scene should progressively reveal more complexity visually.
+        11. MAXIMUM CLARITY: Use thick lines, large bold text, high contrast for crystal-clear visibility.
+        `;
 
-🔹 svgCode
-A custom, creative, and visually stunning SVG illustration for the scene, relevant to the contentText.
-
-The SVG should be large (at least 600x400), detailed, educational, and highly visually appealing.
-
-Use inline SVG code, valid and self-contained.
-
-Include advanced animations using CSS or SMIL for interactivity (e.g., morphing, color changes, movements).
-
-Make it colorful, dynamic, and interactive-looking with gradients, patterns, and effects.
-
-Be creative and unique for each scene.
-
-Do not use curly quotes ('); use only straight quotes (').
-
-🎯 Total target duration: ~60 seconds.
-🎬 Final output must be a valid JSON array of objects with "contentText" and "svgCode" keys.`;
+  const textPrompt = script_prompt;
   const ai = new GoogleGenAI({
     apiKey: process.env.GEMINI_API_KEY,
   });
@@ -44,7 +70,7 @@ Do not use curly quotes ('); use only straight quotes (').
     },
     responseMimeType: "text/plain",
   };
-  const model = "gemini-2.0-flash";
+  const model = "gemini-2.5-flash";
 
   const contents = [
     {
@@ -61,24 +87,24 @@ Do not use curly quotes ('); use only straight quotes (').
         {
           text: `[
   {
-    "contentText": "Ever wondered how plants make their own food? Let's dive into photosynthesis!",
-    "svgCode": "<svg width='600' height='400'><defs><radialGradient id='grad1' cx='50%' cy='50%' r='50%'><stop offset='0%' style='stop-color:yellow;stop-opacity:1' /><stop offset='100%' style='stop-color:orange;stop-opacity:1' /></radialGradient></defs><circle cx='300' cy='200' r='100' fill='url(#grad1)'><animate attributeName='r' values='100;120;100' dur='3s' repeatCount='indefinite'/></circle><text x='300' y='320' text-anchor='middle' fill='white' font-size='24'>Sunlight Energy</text><path d='M 100 100 L 500 100 L 300 300 Z' fill='green' opacity='0.7'><animateTransform attributeName='transform' type='scale' values='1;1.1;1' dur='2s' repeatCount='indefinite'/></path></svg>"
+    "narration": "Ever wondered how plants make their own food? Let's dive into photosynthesis! This amazing process allows green plants to convert light energy into chemical energy.",
+    "on_screen_text": "🌱 Plant Magic! 🌞",
+    "image_prompt": "Create a detailed educational drawing-style image with two side-by-side diagrams: Left diagram shows a green plant with leaves absorbing sunlight rays, water droplets rising from roots, and CO2 molecules entering the leaves, with labels 'Sunlight Energy', 'Water Uptake', 'CO2 Input'. Right diagram displays the chemical equation CO2 + H2O + sunlight → C6H12O6 + O2 with arrows and molecules, labeled 'Photosynthesis Reaction'. All in clean black, blue, purple lines on pure white background, rectangular format."
   },
   {
-    "contentText": "Photosynthesis is the process where plants use sunlight, water, and carbon dioxide to create glucose and oxygen.",
-    "svgCode": "<svg width='600' height='400'><rect x='100' y='150' width='150' height='100' fill='blue' rx='10'/><text x='175' y='210' text-anchor='middle' fill='white' font-size='18'>Water (H2O)</text><circle cx='400' cy='200' r='60' fill='lightgreen'/><text x='400' y='210' text-anchor='middle' fill='black' font-size='16'>CO2</text><path d='M 300 100 Q 350 150 300 200' stroke='yellow' stroke-width='5' fill='none'><animate attributeName='stroke-dasharray' values='0,100;100,0' dur='2s' repeatCount='indefinite'/></path></svg>"
+    "narration": "Photosynthesis occurs in the chloroplasts within plant cells. Chlorophyll, the green pigment, captures sunlight and uses it to combine carbon dioxide from the air with water from the soil.",
+    "on_screen_text": "🔬 Inside the Leaf! 🧬",
+    "image_prompt": "Create a detailed educational drawing-style image with two side-by-side diagrams: Left diagram shows cross-section of a leaf with chloroplasts as green ovals, chlorophyll molecules as dots, sunlight arrows penetrating, CO2 arrows entering, labeled 'Leaf Cross-Section'. Right diagram illustrates chloroplast interior with thylakoid membranes and grana stacks, labeled 'Chloroplast Structure'. All in black, purple, blue lines on pure white background, rectangular format with explanatory text."
   },
   {
-    "contentText": "It happens in the chloroplasts, using chlorophyll to capture light energy.",
-    "svgCode": "<svg width='600' height='400'><ellipse cx='300' cy='200' rx='120' ry='80' fill='darkgreen'/><text x='300' y='210' text-anchor='middle' fill='white' font-size='20'>Chloroplast</text><circle cx='250' cy='180' r='20' fill='green'><animate attributeName='fill' values='green;yellow;green' dur='1.5s' repeatCount='indefinite'/></circle><circle cx='350' cy='180' r='20' fill='green'><animate attributeName='fill' values='green;yellow;green' dur='1.5s' repeatCount='indefinite' begin='0.5s'/></circle><text x='300' y='320' text-anchor='middle' fill='white' font-size='16'>Chlorophyll Molecules</text></svg>"
+    "narration": "Through a series of chemical reactions, glucose is produced as food for the plant, while oxygen gas is released as a byproduct. This oxygen is what we breathe to stay alive.",
+    "on_screen_text": "⚗️ Chemical Magic! 🌿",
+    "image_prompt": "Create a detailed educational drawing-style image with two side-by-side diagrams: Left diagram shows light-dependent reactions with photosystems capturing light photons, labeled 'Light Reactions'. Right diagram displays the Calvin cycle producing glucose with CO2 fixation, labeled 'Calvin Cycle'. Include text labels for ATP, NADPH, and glucose, all in blue, black, purple lines on pure white background, rectangular format."
   },
   {
-    "contentText": "This process not only feeds the plant but also produces the oxygen we breathe.",
-    "svgCode": "<svg width='600' height='400'><rect x='150' y='150' width='120' height='100' fill='green' rx='15'/><text x='210' y='210' text-anchor='middle' fill='white' font-size='16'>Plant</text><circle cx='400' cy='200' r='50' fill='skyblue'/><text x='400' y='210' text-anchor='middle' fill='white' font-size='18'>O2</text><path d='M 270 200 L 350 200' stroke='black' stroke-width='3' marker-end='url(#arrow)'/><defs><marker id='arrow' markerWidth='10' markerHeight='10' refX='9' refY='3' orient='auto' markerUnits='strokeWidth'><path d='M0,0 L0,6 L9,3 z' fill='black'/></marker></defs><animateTransform attributeName='transform' type='translate' values='0,0;20,0;0,0' dur='3s' repeatCount='indefinite'/></path></svg>"
-  },
-  {
-    "contentText": "Understanding photosynthesis helps us appreciate nature's balance. What do you think? Share in the comments!",
-    "svgCode": "<svg width='600' height='400'><circle cx='150' cy='200' r='60' fill='yellow'/><text x='150' y='210' text-anchor='middle' fill='black' font-size='14'>Sun</text><path d='M 250 150 Q 300 200 250 250 Q 200 200 250 150' fill='green'/><text x='250' y='220' text-anchor='middle' fill='white' font-size='16'>Cycle</text><circle cx='400' cy='200' r='50' fill='blue'/><text x='400' y='210' text-anchor='middle' fill='white' font-size='16'>Earth</text><animateMotion dur='4s' repeatCount='indefinite'><mpath href='#cyclePath'/></animateMotion><path id='cyclePath' d='M 150 200 Q 300 100 450 200 Q 300 300 150 200' fill='none'/></svg>"
+    "narration": "Photosynthesis is crucial for life on Earth, providing food and oxygen. Without it, our planet would be very different. Understanding this process helps us appreciate nature's incredible balance.",
+    "on_screen_text": "🌍 Earth's Balance! ✨",
+    "image_prompt": "Create a detailed educational drawing-style image with two side-by-side diagrams: Left diagram shows plants absorbing CO2 and releasing O2, animals doing the reverse, labeled 'Gas Exchange'. Right diagram displays interconnected cycle of plants, animals, atmosphere with arrows showing carbon and oxygen flow, labeled 'Biosphere Balance'. Include explanatory text about the cycle, all in black, purple, blue lines on pure white background, rectangular format."
   }
 ]`,
         },

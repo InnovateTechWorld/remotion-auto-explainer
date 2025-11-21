@@ -1,0 +1,4 @@
+file 'C:\Users\User\Downloads\auto-shorts-main\auto-shorts-main\public\audio\scene_0.wav'
+file 'C:\Users\User\Downloads\auto-shorts-main\auto-shorts-main\public\audio\scene_1.wav'
+file 'C:\Users\User\Downloads\auto-shorts-main\auto-shorts-main\public\audio\scene_2.wav'
+file 'C:\Users\User\Downloads\auto-shorts-main\auto-shorts-main\public\audio\scene_3.wav'
