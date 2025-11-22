@@ -75,7 +75,7 @@
       // Disable button and show loading
       button.disabled = true;
       button.textContent = 'Generating...';
-      status.textContent = 'Generating video... This may take 2-3 minutes.';
+      status.textContent = 'Starting video generation...';
 
       try {
         const response = await fetch('/generate', {
@@ -86,44 +86,84 @@
           body: JSON.stringify({ prompt }),
         });
 
-        if (response.ok) {
-          // Handle video file download
-          const contentDisposition = response.headers.get('Content-Disposition');
-          let filename = 'educational_video.mp4';
+        if (!response.ok) {
+          // Handle non-200 responses
+          const errorText = await response.text();
+          status.textContent = 'Error: ' + errorText;
+          return;
+        }
 
-          if (contentDisposition) {
-            const filenameMatch = contentDisposition.match(/filename="(.+)"/);
-            if (filenameMatch) {
-              filename = filenameMatch[1];
+        // Handle streaming response
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop(); // Keep incomplete line in buffer
+
+          for (const line of lines) {
+            if (line.trim()) {
+              try {
+                const data = JSON.parse(line.trim());
+
+                if (data.status === 'progress') {
+                  status.textContent = data.message;
+                } else if (data.status === 'error') {
+                  status.textContent = 'Error: ' + data.message;
+                  return;
+                }
+              } catch (parseError) {
+                // If it's not JSON, it might be the start of the file
+                if (response.headers.get('content-type') === 'video/mp4') {
+                  // Handle video file download
+                  const contentDisposition = response.headers.get('Content-Disposition');
+                  let filename = 'educational_video.mp4';
+
+                  if (contentDisposition) {
+                    const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+                    if (filenameMatch) {
+                      filename = filenameMatch[1];
+                    }
+                  }
+
+                  // Create blob from remaining data
+                  const remainingData = new Uint8Array([...decoder.decode(value).split('').map(c => c.charCodeAt(0))]);
+                  const blob = new Blob([remainingData], { type: 'video/mp4' });
+
+                  // Read the rest of the stream
+                  const chunks = [];
+                  chunks.push(remainingData);
+
+                  while (true) {
+                    const { done: streamDone, value: streamValue } = await reader.read();
+                    if (streamDone) break;
+                    chunks.push(streamValue);
+                  }
+
+                  const fullBlob = new Blob(chunks, { type: 'video/mp4' });
+                  const url = window.URL.createObjectURL(fullBlob);
+
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = filename;
+                  document.body.appendChild(a);
+                  a.click();
+                  window.URL.revokeObjectURL(url);
+                  document.body.removeChild(a);
+
+                  status.textContent = 'Video downloaded successfully!';
+                  return;
+                }
+              }
             }
           }
-
-          const blob = await response.blob();
-          const url = window.URL.createObjectURL(blob);
-
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = filename;
-          document.body.appendChild(a);
-          a.click();
-          window.URL.revokeObjectURL(url);
-          document.body.removeChild(a);
-
-          status.textContent = 'Video downloaded successfully!';
-        } else {
-          // Handle error response
-          const errorText = await response.text();
-          let errorMessage = 'Unknown error occurred';
-
-          try {
-            const errorData = JSON.parse(errorText);
-            errorMessage = errorData.message || errorMessage;
-          } catch {
-            errorMessage = errorText || errorMessage;
-          }
-
-          status.textContent = 'Error: ' + errorMessage;
         }
+
       } catch (error) {
         status.textContent = 'Error: ' + error.message;
       } finally {

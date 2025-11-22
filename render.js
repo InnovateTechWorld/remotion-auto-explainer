@@ -31,20 +31,30 @@ app.get("/health", (req, res) => {
 });
 
 app.post("/generate", async (req, res) => {
+  // Set headers for streaming response
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Transfer-Encoding', 'chunked');
+
   try {
     const { prompt } = req.body;
 
     // Input validation
     if (!prompt || typeof prompt !== 'string') {
-      return res.status(400).json({ message: "Prompt is required and must be a string" });
+      res.write(JSON.stringify({ status: 'error', message: "Prompt is required and must be a string" }) + '\n');
+      res.end();
+      return;
     }
 
     if (prompt.trim().length < 3) {
-      return res.status(400).json({ message: "Prompt must be at least 3 characters long" });
+      res.write(JSON.stringify({ status: 'error', message: "Prompt must be at least 3 characters long" }) + '\n');
+      res.end();
+      return;
     }
 
     if (prompt.length > 500) {
-      return res.status(400).json({ message: "Prompt must be less than 500 characters" });
+      res.write(JSON.stringify({ status: 'error', message: "Prompt must be less than 500 characters" }) + '\n');
+      res.end();
+      return;
     }
 
     console.log("Generating script for prompt:", prompt);
@@ -59,10 +69,17 @@ app.post("/generate", async (req, res) => {
 
     if (!script || !Array.isArray(script) || script.length === 0) {
       console.log("Script generation failed or returned invalid data");
-      return res.status(500).json({ message: "Failed to generate video script. Please try a different prompt." });
+      res.write(JSON.stringify({ status: 'error', message: "Failed to generate video script. Please try a different prompt." }) + '\n');
+      res.end();
+      return;
     }
 
     console.log("Script generated with", script.length, "scenes");
+
+    // Send progress update if client is still connected
+    if (res.writable) {
+      res.write(JSON.stringify({ status: 'progress', message: 'Script generated. Generating video...' }) + '\n');
+    }
 
     // Generate video with timeout
     const videoPath = await Promise.race([
@@ -74,7 +91,9 @@ app.post("/generate", async (req, res) => {
 
     if (!videoPath) {
       console.log("Video generation failed");
-      return res.status(500).json({ message: "Video generation failed. Please try again." });
+      res.write(JSON.stringify({ status: 'error', message: "Video generation failed. Please try again." }) + '\n');
+      res.end();
+      return;
     }
 
     console.log("Video generated successfully:", videoPath);
@@ -83,17 +102,32 @@ app.post("/generate", async (req, res) => {
     const fs = require('fs');
     if (!fs.existsSync(videoPath)) {
       console.error("Generated video file not found:", videoPath);
-      return res.status(500).json({ message: "Video file was not created properly" });
+      res.write(JSON.stringify({ status: 'error', message: "Video file was not created properly" }) + '\n');
+      res.end();
+      return;
     }
 
     const stats = fs.statSync(videoPath);
     if (stats.size === 0) {
       console.error("Generated video file is empty:", videoPath);
       fs.unlinkSync(videoPath); // Clean up empty file
-      return res.status(500).json({ message: "Generated video file is empty" });
+      res.write(JSON.stringify({ status: 'error', message: "Generated video file is empty" }) + '\n');
+      res.end();
+      return;
     }
 
     console.log("Video file size:", stats.size, "bytes");
+
+    // Check if client is still connected
+    if (!res.writable) {
+      console.log("Client disconnected, cleaning up video file");
+      try {
+        fs.unlinkSync(videoPath);
+      } catch (cleanupError) {
+        console.warn("Could not clean up video file:", cleanupError.message);
+      }
+      return; // Exit without sending response
+    }
 
     // Read the video file and send it directly
     const videoBuffer = fs.readFileSync(videoPath);
@@ -106,17 +140,19 @@ app.post("/generate", async (req, res) => {
       console.warn("Could not clean up video file:", cleanupError.message);
     }
 
-    // Set headers for file download
-    const sanitizedPrompt = prompt.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30);
-    const filename = `educational_video_${sanitizedPrompt}.mp4`;
+    // Send progress update before file download
+    if (res.writable) {
+      res.write(JSON.stringify({ status: 'progress', message: 'Video ready. Downloading...' }) + '\n');
+    }
 
+    // Change content type for file download
     res.setHeader('Content-Type', 'video/mp4');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Disposition', `attachment; filename="educational_video_${prompt.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30)}.mp4"`);
     res.setHeader('Content-Length', videoBuffer.length);
     res.setHeader('Cache-Control', 'no-cache');
 
     // Send the video file
-    res.send(videoBuffer);
+    res.end(videoBuffer);
 
   } catch (error) {
     console.error("Error generating video:", error);
@@ -132,7 +168,11 @@ app.post("/generate", async (req, res) => {
       errorMessage = "API quota exceeded. Please try again later.";
     }
 
-    res.status(500).json({ message: errorMessage });
+    // Send error as streaming response
+    if (res.writable) {
+      res.write(JSON.stringify({ status: 'error', message: errorMessage }) + '\n');
+    }
+    res.end();
   }
 });
 // Start Server
