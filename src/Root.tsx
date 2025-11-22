@@ -1,18 +1,21 @@
 import { Composition } from "remotion";
-import { MyComposition } from "./Composition";
+import MyVideo from "./MyVideo";
 
 export const RemotionRoot: React.FC = () => {
-
   return (
     <>
       <Composition
         id="MyComp"
-        component={MyComposition}
-        durationInFrames={1800} // 60 seconds for 10 scenes
+        component={MyVideo}
+        durationInFrames={1} // Placeholder, will be overridden
         fps={30}
-        width={1920}
-        height={1080}
-        defaultProps={{ script: [] }}
+        width={1280} // Reduced from 1920
+        height={720} // Reduced from 1080
+        defaultProps={{
+          script: [],
+          audioPath: '',
+          durationInFrames: 1
+        }}
       />
     </>
   );

@@ -19,7 +19,7 @@ async function generateImage(drawing_description) {
         - Style: MODERN 3D RENDERED educational illustrations with realistic lighting, shadows, and depth. Use vibrant colors (blues, purples, teals) on a STRICTLY PURE WHITE background.
         - VISUAL APPEAL: Create stunning, modern 3D graphics that are visually captivating and engaging. Include subtle gradients, highlights, and professional 3D effects.
         - FORMAT: Rectangular (16:9 aspect ratio) with TWO side-by-side educational diagrams/figures.
-        - CANVAS SIZE: Design for 1920x1080 resolution - ensure ALL content fits perfectly within this frame.
+        - CANVAS SIZE: Design for 1280x720 resolution - ensure ALL content fits perfectly within this frame.
         - LAYOUT: Two diagrams side-by-side with GENEROUS spacing between them (at least 100px gap in center). Each diagram should be well-spaced and not cramped.
         - INCLUDE clear, modern 3D-styled text labels and explanatory text within the image for educational clarity.
         - Each diagram should be comprehensive and match the narration exactly.
@@ -194,6 +194,10 @@ async function generateVideo({ script, prompt }) {
         codec: "h264",
         outputLocation,
         inputProps,
+        crf: 32, // Increased for lower quality, less memory (was 28)
+        pixelFormat: "yuv420p",
+        concurrency: 1, // Keep at 1 to avoid overloading
+        imageFormat: "jpeg", // Ensure JPEG output
       });
 
       // Verify the output file was created
@@ -210,8 +214,8 @@ async function generateVideo({ script, prompt }) {
       return outputLocation;
 
     } catch (renderError) {
-      console.error("Video rendering failed:", renderError);
-      throw new Error(`Failed to render video: ${renderError.message}`);
+      console.error("Video rendering failed:", renderError.message);
+      throw new Error(`Video rendering failed: ${renderError.message}`);
     }
   } catch (error) {
     console.error("Error generating video:", error);

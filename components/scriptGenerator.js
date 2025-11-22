@@ -21,12 +21,17 @@ async function generate(userPrompt) {
         - The image description MUST be extremely detailed and comprehensive
         - The image should be AS EXPLANATORY as the narration itself
         - IMAGE FORMAT: Rectangular (16:9 aspect ratio), containing TWO side-by-side diagrams/figures
+        - CANVAS SIZE: Design for 1280x720 resolution - ensure ALL content fits perfectly within this frame.
+        - LAYOUT: Two diagrams side-by-side with GENEROUS spacing between them (at least 50px gap in center). Each diagram should be well-spaced and not cramped.
         - INCLUDE TEXT LABELS in the image for clarity and educational value
         - Each diagram should have descriptive text explaining key concepts
         - BACKGROUND MUST BE STRICTLY PURE WHITE - no black, dark, or mixed backgrounds
         - START MINIMAL: Scene 1 should show basic/simple concepts, then progressively add complexity
         - MAKE IMAGES VERY CLEAR: Use thick, bold lines, large text, high contrast for maximum visibility
         - PROGRESSIVE REVEAL: Each scene builds on the previous one visually
+        - FIT TO FRAME: CRITICAL - ensure the entire composition fits within the 1280x720 canvas with NO elements cut off or extending outside.
+        - MARGINS: Leave generous white space around all elements to prevent cutoff and enhance visual appeal.
+        - SCALING: Size all elements to fit comfortably within their designated areas without overflow.
 
         STRICT REQUIREMENTS:
         - Total duration: EXACTLY ${target_duration} seconds (under 2 minutes).

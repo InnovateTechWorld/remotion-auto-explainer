@@ -1,82 +1,70 @@
-// src/MyVideo.tsx
 import React from "react";
 import {
   AbsoluteFill,
   Audio,
   staticFile,
 } from "remotion";
-import { linearTiming, TransitionSeries } from "@remotion/transitions";
-import { slide } from "@remotion/transitions/slide";
 
-const MyVideo = ({ script = [], audioPath = '' }: any) => {
-  const transitionDuration = 60; // 2 second transition for drawing effect
-
+const MyVideo: React.FC<{ script: any[]; audioPath: string; durationInFrames: number }> = ({ script, audioPath, durationInFrames }) => {
   // Safety check
   if (!script || !Array.isArray(script)) {
     return <AbsoluteFill style={{ backgroundColor: "white" }} />;
   }
 
-  return (
-    <AbsoluteFill style={{ backgroundColor: "white" }}>
-      {audioPath && <Audio src={staticFile(audioPath)} />}
-      {/* Logo watermark - made bigger */}
-      <img
-        src={staticFile('/Wekoya_logo_mark.svg')}
-        style={{
-          position: 'absolute',
-          top: 20,
-          right: 20,
-          width: 150,
-          height: 40,
-          zIndex: 20,
-        }}
-      />
-      <TransitionSeries>
-        {script.map((scene: any, index: number) => {
-          const sceneDuration = scene.durationInFrames || 900; // 30 seconds at 30fps
+  // Calculate frames per scene (assuming 4 scenes)
+  const framesPerScene = Math.floor(durationInFrames / script.length);
 
-          return (
-            <React.Fragment key={`scene-${index}`}>
-              <TransitionSeries.Sequence durationInFrames={sceneDuration}>
-                <AbsoluteFill>
-                  {scene.imagePath && (
-                    <img
-                      src={staticFile(scene.imagePath)}
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'contain',
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                      }}
-                    />
-                  )}
-                </AbsoluteFill>
-              </TransitionSeries.Sequence>
-              {index < script.length - 1 && (
-                <TransitionSeries.Transition
-                  presentation={slide()}
-                  timing={linearTiming({ durationInFrames: transitionDuration })}
-                />
-              )}
-            </React.Fragment>
-          );
-        })}
-        {/* Final logo sequence - starts immediately after last scene */}
-        <TransitionSeries.Sequence durationInFrames={60}> {/* 2 seconds */}
-          <AbsoluteFill style={{ backgroundColor: "white", display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+  return (
+    <div style={{ flex: 1, backgroundColor: 'white' }}>
+      {audioPath && <Audio src={staticFile(audioPath)} />}
+      {script.map((scene: any, index: number) => (
+        <AbsoluteFill key={index} style={{
+          display: index === 0 ? 'block' : 'none'
+        }}>
+          {/* Background image */}
+          <AbsoluteFill>
             <img
-              src={staticFile('/Wekoya_logo_mark.svg')}
+              src={staticFile(scene.imagePath)}
               style={{
-                width: 200,
-                height: 50,
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
               }}
             />
           </AbsoluteFill>
-        </TransitionSeries.Sequence>
-      </TransitionSeries>
-    </AbsoluteFill>
+
+          {/* On-screen text */}
+          <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center' }}>
+            <div
+              style={{
+                fontSize: 72, // Reduced from 96
+                fontWeight: 'bold',
+                color: 'white',
+                textShadow: '2px 2px 4px rgba(0,0,0,0.8)',
+                textAlign: 'center',
+                backgroundColor: 'rgba(0,0,0,0.7)',
+                padding: '20px 40px',
+                borderRadius: '10px',
+              }}
+            >
+              {scene.on_screen_text}
+            </div>
+          </AbsoluteFill>
+
+          {/* Logo */}
+          <AbsoluteFill style={{ justifyContent: 'flex-end', alignItems: 'flex-end', padding: 20 }}>
+            <img
+              src={staticFile('/Wekoya_logo_mark.svg')}
+              style={{
+                width: 100, // Reduced from 150
+                height: 100,
+                opacity: 0.8,
+              }}
+            />
+          </AbsoluteFill>
+        </AbsoluteFill>
+      ))}
+    </div>
   );
 };
 
