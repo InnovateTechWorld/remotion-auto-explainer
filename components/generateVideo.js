@@ -52,6 +52,15 @@ async function generateImage(drawing_description) {
 
 async function generateVideo({ script, prompt }) {
   try {
+    // Input validation
+    if (!script || !Array.isArray(script) || script.length === 0) {
+      throw new Error('Invalid script provided');
+    }
+
+    if (!prompt || typeof prompt !== 'string') {
+      throw new Error('Invalid prompt provided');
+    }
+
     const compositionId = "MyComp";
     const transitionDuration = 15; // frames per transition
 
@@ -61,6 +70,7 @@ async function generateVideo({ script, prompt }) {
     const imageDir = path.join(tempDir, "images");
     const outputDir = path.join(tempDir, "output");
 
+    // Ensure directories exist
     await fs.ensureDir(audioDir);
     await fs.ensureDir(imageDir);
     await fs.ensureDir(outputDir);
@@ -94,12 +104,31 @@ async function generateVideo({ script, prompt }) {
         };
 
         console.log(`Generating image for scene ${i}...`);
-        const imageData = await generateImage(scene.image_prompt);
-        if (imageData) {
-          const imageFilename = `scene_${i}.png`;
-          const imagePath = path.join(imageDir, imageFilename);
-          fs.writeFileSync(imagePath, Buffer.from(imageData, "base64"));
-          updatedScene.imagePath = `/images/${imageFilename}`;
+        try {
+          const imageData = await generateImage(scene.image_prompt);
+          if (imageData && imageData.length > 0) {
+            const imageFilename = `scene_${i}.png`;
+            const imagePath = path.join(imageDir, imageFilename);
+            fs.writeFileSync(imagePath, Buffer.from(imageData, "base64"));
+
+            // Verify the image was written correctly
+            if (fs.existsSync(imagePath)) {
+              const stats = fs.statSync(imagePath);
+              if (stats.size > 0) {
+                updatedScene.imagePath = `/images/${imageFilename}`;
+                console.log(`Image for scene ${i} generated successfully (${stats.size} bytes)`);
+              } else {
+                console.warn(`Image for scene ${i} is empty, skipping`);
+              }
+            } else {
+              console.warn(`Image file for scene ${i} was not created`);
+            }
+          } else {
+            console.warn(`No image data received for scene ${i}`);
+          }
+        } catch (imageError) {
+          console.error(`Failed to generate image for scene ${i}:`, imageError.message);
+          // Continue without image for this scene
         }
 
         scriptWithDuration.push(updatedScene);
@@ -118,24 +147,35 @@ async function generateVideo({ script, prompt }) {
 
     // Now bundle AFTER audio is generated
     console.log("Bundling Remotion project...");
-    const bundleLocation = await bundle({
-      entryPoint: path.join(__dirname, "../src/index.tsx"),
-      webpackOverride: (config) => config,
-    });
+    let bundleLocation;
+    try {
+      bundleLocation = await bundle({
+        entryPoint: path.join(__dirname, "../src/index.tsx"),
+        webpackOverride: (config) => config,
+      });
+      console.log("Bundle created at:", bundleLocation);
+    } catch (bundleError) {
+      console.error("Bundling failed:", bundleError);
+      throw new Error(`Failed to bundle Remotion project: ${bundleError.message}`);
+    }
 
-    // Copy audio files to the bundle's root audio folder
-    const bundleAudioDir = path.join(bundleLocation, "audio");
+    // Ensure public folder exists in bundle
+    const bundlePublicDir = path.join(bundleLocation, "public");
+    await fs.ensureDir(bundlePublicDir);
+
+    // Copy audio files to the bundle's public/audio folder
+    const bundleAudioDir = path.join(bundleLocation, "public", "audio");
     await fs.ensureDir(bundleAudioDir);
     await fs.copy(audioDir, bundleAudioDir, { overwrite: true });
 
-    // Copy image files to the bundle's root images folder
-    const bundleImageDir = path.join(bundleLocation, "images");
+    // Copy image files to the bundle's public/images folder
+    const bundleImageDir = path.join(bundleLocation, "public", "images");
     await fs.ensureDir(bundleImageDir);
     await fs.copy(imageDir, bundleImageDir, { overwrite: true });
 
-    // Copy logo file to the bundle's root
+    // Copy logo file to the bundle's public folder
     const logoPath = path.join(__dirname, "../public/Wekoya_logo_mark.svg");
-    const bundleLogoPath = path.join(bundleLocation, "Wekoya_logo_mark.svg");
+    const bundleLogoPath = path.join(bundleLocation, "public", "Wekoya_logo_mark.svg");
     if (await fs.pathExists(logoPath)) {
       await fs.copy(logoPath, bundleLogoPath, { overwrite: true });
     }
@@ -147,16 +187,32 @@ async function generateVideo({ script, prompt }) {
     });
 
     console.log("Starting video render...");
-    await renderMedia({
-      composition,
-      serveUrl: bundleLocation,
-      codec: "h264",
-      outputLocation,
-      inputProps,
-    });
+    try {
+      await renderMedia({
+        composition,
+        serveUrl: bundleLocation,
+        codec: "h264",
+        outputLocation,
+        inputProps,
+      });
 
-    console.log("Video rendered successfully:", outputLocation);
-    return outputLocation;
+      // Verify the output file was created
+      if (!fs.existsSync(outputLocation)) {
+        throw new Error('Video output file was not created');
+      }
+
+      const outputStats = fs.statSync(outputLocation);
+      if (outputStats.size === 0) {
+        throw new Error('Video output file is empty');
+      }
+
+      console.log("Video rendered successfully:", outputLocation, `(${outputStats.size} bytes)`);
+      return outputLocation;
+
+    } catch (renderError) {
+      console.error("Video rendering failed:", renderError);
+      throw new Error(`Failed to render video: ${renderError.message}`);
+    }
   } catch (error) {
     console.error("Error generating video:", error);
     return null;

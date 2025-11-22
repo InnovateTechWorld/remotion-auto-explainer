@@ -70,7 +70,12 @@
       e.preventDefault();
       const prompt = document.getElementById('prompt').value;
       const status = document.getElementById('status');
-      status.textContent = 'Generating video... Please wait.';
+      const button = document.querySelector('button[type="submit"]');
+
+      // Disable button and show loading
+      button.disabled = true;
+      button.textContent = 'Generating...';
+      status.textContent = 'Generating video... This may take 2-3 minutes.';
 
       try {
         const response = await fetch('/generate', {
@@ -80,14 +85,51 @@
           },
           body: JSON.stringify({ prompt }),
         });
-        const result = await response.json();
+
         if (response.ok) {
-          status.textContent = 'Video generated successfully! File: ' + result.videoPath;
+          // Handle video file download
+          const contentDisposition = response.headers.get('Content-Disposition');
+          let filename = 'educational_video.mp4';
+
+          if (contentDisposition) {
+            const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+            if (filenameMatch) {
+              filename = filenameMatch[1];
+            }
+          }
+
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+
+          status.textContent = 'Video downloaded successfully!';
         } else {
-          status.textContent = 'Error: ' + result.message;
+          // Handle error response
+          const errorText = await response.text();
+          let errorMessage = 'Unknown error occurred';
+
+          try {
+            const errorData = JSON.parse(errorText);
+            errorMessage = errorData.message || errorMessage;
+          } catch {
+            errorMessage = errorText || errorMessage;
+          }
+
+          status.textContent = 'Error: ' + errorMessage;
         }
       } catch (error) {
         status.textContent = 'Error: ' + error.message;
+      } finally {
+        // Re-enable button
+        button.disabled = false;
+        button.textContent = 'Generate Video';
       }
     });
   </script>

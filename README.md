@@ -34,6 +34,14 @@ curl -X POST https://your-app.onrender.com/generate \
   --output educational_video.mp4
 ```
 
+### Web Interface
+
+Visit `https://your-app.onrender.com` to use the web interface:
+- Enter your educational topic in the text area
+- Click "Generate Video" to start the process
+- The video will automatically download when ready
+- Generation takes 2-3 minutes
+
 ### Health Check
 
 **Endpoint**: `GET /health`
@@ -64,7 +72,16 @@ curl -X POST https://your-app.onrender.com/generate \
    TEMP_DIR=/tmp
    ```
 
-4. **Build & Deploy**: Render will automatically build and deploy
+4. **Instance Type**: Choose at least 2GB RAM for video generation
+
+5. **Build & Deploy**: Render will automatically build and deploy
+
+### Troubleshooting Deployment
+
+- **Build Failures**: Check that all dependencies are properly listed in package.json
+- **Memory Issues**: Video generation requires ~2GB RAM minimum
+- **Timeout Issues**: First video generation may take up to 5 minutes
+- **Chrome Issues**: Remotion requires Chrome for rendering - ensure Docker setup is correct
 
 ### Local Development
 
