@@ -25,6 +25,7 @@ WORKDIR /app
 # Set Node memory limit and FFmpeg threads
 ENV NODE_OPTIONS="--max-old-space-size=1024"
 ENV FFmpeg_THREADS=1
+ENV x264_THREADS=1
 
 # Copy package files first for better caching
 COPY package*.json ./

@@ -194,7 +194,7 @@ async function generateVideo({ script, prompt }) {
         codec: "h264",
         outputLocation,
         inputProps,
-        crf: 32, // Increased for lower quality, less memory (was 28)
+        crf: 35, // Increased further for lower quality
         pixelFormat: "yuv420p",
         concurrency: 1, // Keep at 1 to avoid overloading
         imageFormat: "jpeg", // Ensure JPEG output

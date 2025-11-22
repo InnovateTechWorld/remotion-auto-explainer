@@ -69,3 +69,26 @@ const MyVideo: React.FC<{ script: any[]; audioPath: string; durationInFrames: nu
 };
 
 export default MyVideo;
+
+// Import Composition at the top
+import { Composition } from "remotion";
+
+export const RemotionRoot: React.FC = () => {
+  return (
+    <>
+      <Composition
+        id="MyComp"
+        component={MyVideo}
+        durationInFrames={1} // Placeholder, will be overridden
+        fps={30}
+        width={1280} // Confirm this is set
+        height={720} // Confirm this is set
+        defaultProps={{
+          script: [],
+          audioPath: '',
+          durationInFrames: 1
+        }}
+      />
+    </>
+  );
+};
