@@ -54,10 +54,16 @@ async function generateVideo({ script, prompt }) {
   try {
     const compositionId = "MyComp";
     const transitionDuration = 15; // frames per transition
-    const audioDir = path.join(__dirname, "../public/audio");
-    const imageDir = path.join(__dirname, "../public/images");
+
+    // Use temp directories for cloud deployment
+    const tempDir = process.env.TEMP_DIR || '/tmp';
+    const audioDir = path.join(tempDir, "audio");
+    const imageDir = path.join(tempDir, "images");
+    const outputDir = path.join(tempDir, "output");
+
     await fs.ensureDir(audioDir);
     await fs.ensureDir(imageDir);
+    await fs.ensureDir(outputDir);
 
     console.log("Generating full audio...");
     const audioFilename = `full_audio.wav`;
@@ -108,7 +114,7 @@ async function generateVideo({ script, prompt }) {
     }
     const sanitizedPrompt = prompt.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 50);
     const timestamp = Date.now();
-    const outputLocation = path.join(__dirname, "../public", `${sanitizedPrompt}_${timestamp}.mp4`);
+    const outputLocation = path.join(outputDir, `${sanitizedPrompt}_${timestamp}.mp4`);
 
     // Now bundle AFTER audio is generated
     console.log("Bundling Remotion project...");

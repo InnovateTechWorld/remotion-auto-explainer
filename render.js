@@ -3,7 +3,7 @@ require("dotenv").config();
 const path = require("path");
 const express = require("express");
 const app = express();
-const PORT = process.env.PORT || 4000;
+const PORT = process.env.PORT || 10000;
 const generate = require("./components/scriptGenerator.js");
 const generateVideo = require("./components/generateVideo.js");
 const cors = require("cors");
@@ -26,6 +26,10 @@ app.get("/terms", (req, res) => {
   res.sendFile(path.join(__dirname, "public/pages", "terms.html"));
 });
 
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "OK", timestamp: new Date().toISOString() });
+});
+
 app.post("/generate", async (req, res) => {
   try {
     const { prompt } = req.body;
@@ -40,7 +44,28 @@ app.post("/generate", async (req, res) => {
       const videoPath = await generateVideo({ script, prompt });
       if (videoPath) {
         console.log("Video generated successfully:", videoPath);
-        res.status(200).json({ message: "Video generated successfully", videoPath });
+
+        // Read the video file and send it directly
+        const fs = require('fs');
+        const videoBuffer = fs.readFileSync(videoPath);
+
+        // Clean up the file after reading (optional, since we're in memory-focused mode)
+        try {
+          fs.unlinkSync(videoPath);
+        } catch (cleanupError) {
+          console.warn("Could not clean up video file:", cleanupError.message);
+        }
+
+        // Set headers for file download
+        const sanitizedPrompt = prompt.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30);
+        const filename = `educational_video_${sanitizedPrompt}.mp4`;
+
+        res.setHeader('Content-Type', 'video/mp4');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.setHeader('Content-Length', videoBuffer.length);
+
+        // Send the video file
+        res.send(videoBuffer);
       } else {
         console.log("Video generation failed");
         res.status(500).json({ message: "Video generation failed" });

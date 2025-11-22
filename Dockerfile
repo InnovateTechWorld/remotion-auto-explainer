@@ -1,6 +1,6 @@
 FROM node:22-bookworm-slim
 
-# Install Chrome dependencies and build tools
+# Install Chrome dependencies for Remotion
 RUN apt-get update && apt-get install -y \
   libnss3 \
   libdbus-1-3 \
@@ -16,35 +16,35 @@ RUN apt-get update && apt-get install -y \
   libpango-1.0-0 \
   libcairo2 \
   libcups2 \
-  curl \
-  g++ \
-  make \
-  cmake \
-  python3 \
-  unzip \
-  autoconf \
-  automake \
-  libtool \
   && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
-WORKDIR /
+WORKDIR /app
+
+# Copy package files first for better caching
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci --only=production
 
 # Copy application files
 COPY . .
 
-# Install dependencies
-RUN npm install
-
-# Install AWS Lambda Runtime Interface Client (requires cmake)
-RUN npm install aws-lambda-ric
-
 # Ensure Chrome is installed for Remotion
 RUN npx remotion browser ensure
 
-# Set the entry point and command for AWS Lambda
-ENTRYPOINT ["/usr/local/bin/npx", "aws-lambda-ric"]
-CMD ["render.handler"]
+# Create temp directory for in-memory operations
+RUN mkdir -p /tmp
+
+# Expose port
+EXPOSE 10000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:10000/health || exit 1
+
+# Start the application
+CMD ["npm", "start"]
 
 
 

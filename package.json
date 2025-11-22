@@ -37,6 +37,7 @@
     "start": "node render.js",
     "dev": "nodemon render.js --ignore token.json",
     "build": "remotion bundle",
+    "render": "node render.js",
     "upgrade": "remotion upgrade",
     "lint": "eslint src && tsc"
   },
