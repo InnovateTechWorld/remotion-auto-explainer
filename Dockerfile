@@ -1,6 +1,6 @@
 FROM node:22-bookworm-slim
 
-# Install Chrome dependencies for Remotion
+# Install Chrome dependencies for Remotion AND ffmpeg
 RUN apt-get update && apt-get install -y \
   libnss3 \
   libdbus-1-3 \
@@ -16,6 +16,7 @@ RUN apt-get update && apt-get install -y \
   libpango-1.0-0 \
   libcairo2 \
   libcups2 \
+  ffmpeg \
   && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
