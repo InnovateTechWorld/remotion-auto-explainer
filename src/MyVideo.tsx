@@ -43,13 +43,12 @@ const MyVideo = ({ script = [], audioPath = '' }: any) => {
                     <img
                       src={staticFile(scene.imagePath)}
                       style={{
-                        width: '120%',
-                        height: '120%',
+                        width: '100%',
+                        height: '100%',
                         objectFit: 'contain',
                         position: 'absolute',
-                        top: '50%',
-                        left: '50%',
-                        transform: 'translate(-50%, -50%)',
+                        top: 0,
+                        left: 0,
                       }}
                     />
                   )}
@@ -64,6 +63,18 @@ const MyVideo = ({ script = [], audioPath = '' }: any) => {
             </React.Fragment>
           );
         })}
+        {/* Final logo sequence - starts immediately after last scene */}
+        <TransitionSeries.Sequence durationInFrames={60}> {/* 2 seconds */}
+          <AbsoluteFill style={{ backgroundColor: "white", display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <img
+              src={staticFile('/Wekoya_logo_mark.svg')}
+              style={{
+                width: 200,
+                height: 50,
+              }}
+            />
+          </AbsoluteFill>
+        </TransitionSeries.Sequence>
       </TransitionSeries>
     </AbsoluteFill>
   );
