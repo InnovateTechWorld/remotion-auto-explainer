@@ -9,4 +9,4 @@ import { Config } from "@remotion/cli/config";
 
 Config.setVideoImageFormat("png");
 Config.setOverwriteOutput(true);
-Config.setDelayRenderTimeoutInMilliseconds(60000);
+Config.setDelayRenderTimeoutInMilliseconds(120000);

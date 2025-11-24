@@ -204,6 +204,32 @@ async function generateVideo({ script, prompt }) {
         pixelFormat: "yuv420p",
         concurrency: 1, // Keep at 1 to avoid overloading
         imageFormat: "jpeg", // Ensure JPEG output
+        // Chrome flags for Cloud Run compatibility
+        chromiumOptions: {
+          args: [
+            "--no-sandbox",
+            "--disable-dev-shm-usage",
+            "--disable-gpu",
+            "--disable-software-rasterizer",
+            "--disable-background-timer-throttling",
+            "--disable-backgrounding-occluded-windows",
+            "--disable-renderer-backgrounding",
+            "--disable-features=TranslateUI",
+            "--disable-ipc-flooding-protection",
+            "--disable-extensions",
+            "--disable-hang-monitor",
+            "--disable-prompt-on-repost",
+            "--force-color-profile=srgb",
+            "--metrics-recording-only",
+            "--no-first-run",
+            "--enable-automation",
+            "--password-store=basic",
+            "--use-mock-keychain",
+            "--headless=new",
+            "--disable-web-security",
+            "--disable-features=VizDisplayCompositor"
+          ]
+        }
       });
 
       // Verify the output file was created

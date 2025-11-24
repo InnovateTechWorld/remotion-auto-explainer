@@ -138,6 +138,8 @@ Before deploying, you need to create an S3 bucket for video storage:
    AWS_SECRET_ACCESS_KEY=your_aws_secret_access_key
    NODE_ENV=production
    TEMP_DIR=/tmp
+   PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+   PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome
    ```
 
 4. **Instance Type**: Choose at least 2GB RAM for video generation
