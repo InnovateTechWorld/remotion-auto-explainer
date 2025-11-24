@@ -32,35 +32,18 @@ const MyVideo: React.FC<{ script: any[]; audioPath: string; durationInFrames: nu
                 style={{
                   width: '100%',
                   height: '100%',
-                  objectFit: 'cover',
+                  objectFit: 'contain', // Changed from 'cover' to 'contain' to fit within screen
+                  backgroundColor: 'white', // Ensure white background
                 }}
               />
             </AbsoluteFill>
 
-            {/* On-screen text */}
-            <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center' }}>
-              <div
-                style={{
-                  fontSize: 72, // Reduced from 96
-                  fontWeight: 'bold',
-                  color: 'white',
-                  textShadow: '2px 2px 4px rgba(0,0,0,0.8)',
-                  textAlign: 'center',
-                  backgroundColor: 'rgba(0,0,0,0.7)',
-                  padding: '20px 40px',
-                  borderRadius: '10px',
-                }}
-              >
-                {scene.on_screen_text}
-              </div>
-            </AbsoluteFill>
-
-            {/* Logo */}
-            <AbsoluteFill style={{ justifyContent: 'flex-end', alignItems: 'flex-end', padding: 20 }}>
+            {/* Logo - moved to top */}
+            <AbsoluteFill style={{ justifyContent: 'flex-start', alignItems: 'flex-start', padding: 20 }}>
               <img
                 src={staticFile('/Wekoya_logo_mark.svg')}
                 style={{
-                  width: 100, // Reduced from 150
+                  width: 100,
                   height: 100,
                   opacity: 0.8,
                 }}

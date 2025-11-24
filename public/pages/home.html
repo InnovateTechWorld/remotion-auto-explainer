@@ -66,112 +66,79 @@
   <div id="status"></div>
 
   <script>
-    document.getElementById('generateForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const prompt = document.getElementById('prompt').value;
-      const status = document.getElementById('status');
-      const button = document.querySelector('button[type="submit"]');
+   document.getElementById('generateForm').addEventListener('submit', async (e) => {
+     e.preventDefault();
+     const prompt = document.getElementById('prompt').value;
+     const status = document.getElementById('status');
+     const button = document.querySelector('button[type="submit"]');
 
-      // Disable button and show loading
-      button.disabled = true;
-      button.textContent = 'Generating...';
-      status.textContent = 'Starting video generation...';
+     // Disable button and show loading
+     button.disabled = true;
+     button.textContent = 'Generating...';
+     status.innerHTML = 'Starting video generation...';
 
-      try {
-        const response = await fetch('/generate', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ prompt }),
-        });
+     try {
+       const response = await fetch('/generate', {
+         method: 'POST',
+         headers: {
+           'Content-Type': 'application/json',
+         },
+         body: JSON.stringify({ prompt }),
+       });
 
-        if (!response.ok) {
-          // Handle non-200 responses
-          const errorText = await response.text();
-          status.textContent = 'Error: ' + errorText;
-          return;
-        }
+       const data = await response.json();
 
-        // Handle streaming response
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = '';
+       if (!response.ok) {
+         status.textContent = 'Error: ' + data.message;
+         return;
+       }
 
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
+       if (data.status === 'queued' && data.jobId) {
+         // Start polling for status
+         pollJobStatus(data.jobId, status, button);
+       } else {
+         status.textContent = 'Unexpected response from server';
+       }
 
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split('\n');
-          buffer = lines.pop(); // Keep incomplete line in buffer
+     } catch (error) {
+       status.textContent = 'Error: ' + error.message;
+       button.disabled = false;
+       button.textContent = 'Generate Video';
+     }
+   });
 
-          for (const line of lines) {
-            if (line.trim()) {
-              try {
-                const data = JSON.parse(line.trim());
+   async function pollJobStatus(jobId, statusElement, button) {
+     const pollInterval = setInterval(async () => {
+       try {
+         const response = await fetch(`/status/${jobId}`);
+         const data = await response.json();
 
-                if (data.status === 'progress') {
-                  status.textContent = data.message;
-                } else if (data.status === 'error') {
-                  status.textContent = 'Error: ' + data.message;
-                  return;
-                }
-              } catch (parseError) {
-                // If it's not JSON, it might be the start of the file
-                if (response.headers.get('content-type') === 'video/mp4') {
-                  // Handle video file download
-                  const contentDisposition = response.headers.get('Content-Disposition');
-                  let filename = 'educational_video.mp4';
-
-                  if (contentDisposition) {
-                    const filenameMatch = contentDisposition.match(/filename="(.+)"/);
-                    if (filenameMatch) {
-                      filename = filenameMatch[1];
-                    }
-                  }
-
-                  // Create blob from remaining data
-                  const remainingData = new Uint8Array([...decoder.decode(value).split('').map(c => c.charCodeAt(0))]);
-                  const blob = new Blob([remainingData], { type: 'video/mp4' });
-
-                  // Read the rest of the stream
-                  const chunks = [];
-                  chunks.push(remainingData);
-
-                  while (true) {
-                    const { done: streamDone, value: streamValue } = await reader.read();
-                    if (streamDone) break;
-                    chunks.push(streamValue);
-                  }
-
-                  const fullBlob = new Blob(chunks, { type: 'video/mp4' });
-                  const url = window.URL.createObjectURL(fullBlob);
-
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = filename;
-                  document.body.appendChild(a);
-                  a.click();
-                  window.URL.revokeObjectURL(url);
-                  document.body.removeChild(a);
-
-                  status.textContent = 'Video downloaded successfully!';
-                  return;
-                }
-              }
-            }
-          }
-        }
-
-      } catch (error) {
-        status.textContent = 'Error: ' + error.message;
-      } finally {
-        // Re-enable button
-        button.disabled = false;
-        button.textContent = 'Generate Video';
-      }
-    });
+         if (data.status === 'queued') {
+           statusElement.textContent = 'Video generation queued...';
+         } else if (data.status === 'processing') {
+           statusElement.textContent = data.message || 'Processing video...';
+         } else if (data.status === 'completed') {
+           clearInterval(pollInterval);
+           statusElement.innerHTML = `
+             <p style="color: green; font-weight: bold;">${data.message}</p>
+             <a href="${data.downloadUrl}" target="_blank" style="display: inline-block; background-color: #28a745; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-top: 10px;">Download Video</a>
+           `;
+           button.disabled = false;
+           button.textContent = 'Generate Video';
+         } else if (data.status === 'error') {
+           clearInterval(pollInterval);
+           statusElement.innerHTML = `<p style="color: red; font-weight: bold;">Error: ${data.message}</p>`;
+           button.disabled = false;
+           button.textContent = 'Generate Video';
+         }
+       } catch (error) {
+         clearInterval(pollInterval);
+         statusElement.textContent = 'Error checking status: ' + error.message;
+         button.disabled = false;
+         button.textContent = 'Generate Video';
+       }
+     }, 3000); // Poll every 3 seconds
+   }
   </script>
 </body>
 </html>

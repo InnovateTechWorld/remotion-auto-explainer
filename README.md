@@ -13,7 +13,7 @@ A cloud-deployable API service that generates educational explainer videos using
 
 ## 📋 API Usage
 
-### Generate Video
+### Generate Video (Async)
 
 **Endpoint**: `POST /generate`
 
@@ -24,14 +24,50 @@ A cloud-deployable API service that generates educational explainer videos using
 }
 ```
 
-**Response**: Direct video file download (.mp4)
+**Response**:
+```json
+{
+  "status": "queued",
+  "message": "Video generation started. Check status using the job ID.",
+  "jobId": "job_1732432283123_abc123def"
+}
+```
+
+### Check Job Status
+
+**Endpoint**: `GET /status/:jobId`
+
+**Response** (when processing):
+```json
+{
+  "status": "processing",
+  "message": "Generating video...",
+  "createdAt": 1732432283123
+}
+```
+
+**Response** (when completed):
+```json
+{
+  "status": "completed",
+  "message": "Video generated successfully!",
+  "downloadUrl": "https://your-bucket.s3.amazonaws.com/videos/job_1732432283123_abc123def.mp4",
+  "createdAt": 1732432283123
+}
+```
 
 **Example**:
 ```bash
+# Start video generation
 curl -X POST https://your-app.onrender.com/generate \
   -H "Content-Type: application/json" \
-  -d '{"prompt": "explain photosynthesis process"}' \
-  --output educational_video.mp4
+  -d '{"prompt": "explain photosynthesis process"}'
+
+# Check status (replace JOB_ID with actual job ID)
+curl https://your-app.onrender.com/status/JOB_ID
+
+# Download video when ready
+curl -O https://your-bucket.s3.amazonaws.com/videos/JOB_ID.mp4
 ```
 
 ### Web Interface
@@ -39,7 +75,8 @@ curl -X POST https://your-app.onrender.com/generate \
 Visit `https://your-app.onrender.com` to use the web interface:
 - Enter your educational topic in the text area
 - Click "Generate Video" to start the process
-- The video will automatically download when ready
+- The page will show progress updates every 3 seconds
+- When ready, a download link will appear for the video
 - Generation takes 2-3 minutes
 
 ### Health Check
@@ -56,6 +93,33 @@ Visit `https://your-app.onrender.com` to use the web interface:
 
 ## 🛠️ Deployment
 
+### Prerequisites: S3 Bucket Setup
+
+Before deploying, you need to create an S3 bucket for video storage:
+
+1. **Create S3 Bucket**:
+   ```bash
+   aws s3 mb s3://your-video-bucket-name --region us-east-1
+   ```
+
+2. **Enable Public Read Access**:
+   ```bash
+   aws s3api put-bucket-policy --bucket your-video-bucket-name --policy '{
+     "Version": "2012-10-17",
+     "Statement": [{
+       "Sid": "PublicReadGetObject",
+       "Effect": "Allow",
+       "Principal": "*",
+       "Action": "s3:GetObject",
+       "Resource": "arn:aws:s3:::your-video-bucket-name/*"
+     }]
+   }'
+   ```
+
+3. **Create IAM User/Role** with S3 permissions:
+   - Attach `AmazonS3FullAccess` policy
+   - Note the Access Key ID and Secret Access Key
+
 ### Render Deployment
 
 1. **Connect Repository**: Link your GitHub repo to Render
@@ -68,6 +132,10 @@ Visit `https://your-app.onrender.com` to use the web interface:
 3. **Environment Variables**:
    ```
    GEMINI_API_KEY=your_gemini_api_key_here
+   AWS_REGION=us-east-1
+   S3_BUCKET_NAME=your-video-bucket-name
+   AWS_ACCESS_KEY_ID=your_aws_access_key_id
+   AWS_SECRET_ACCESS_KEY=your_aws_secret_access_key
    NODE_ENV=production
    TEMP_DIR=/tmp
    ```
@@ -107,6 +175,10 @@ curl -X POST http://localhost:10000/generate \
 ### Required Environment Variables
 
 - `GEMINI_API_KEY`: Your Google Gemini API key for AI content generation
+- `AWS_REGION`: AWS region for S3 bucket (e.g., us-east-1)
+- `S3_BUCKET_NAME`: Name of your S3 bucket for video storage
+- `AWS_ACCESS_KEY_ID`: AWS access key ID for S3 access
+- `AWS_SECRET_ACCESS_KEY`: AWS secret access key for S3 access
 - `PORT`: Server port (defaults to 10000 for Render)
 - `NODE_ENV`: Environment (production for cloud deployment)
 
@@ -130,11 +202,13 @@ curl -X POST http://localhost:10000/generate \
 
 ### Workflow
 
-1. **Script Generation**: AI creates 4-scene educational script
-2. **Image Creation**: Gemini generates modern 3D diagrams for each scene
-3. **Audio Synthesis**: Text-to-speech creates synchronized narration
-4. **Video Rendering**: Remotion combines everything into final MP4
-5. **File Delivery**: Video returned directly for download
+1. **Job Queuing**: API receives prompt and returns job ID immediately
+2. **Script Generation**: AI creates 4-scene educational script
+3. **Image Creation**: Gemini generates modern 3D diagrams for each scene
+4. **Audio Synthesis**: Text-to-speech creates synchronized narration
+5. **Video Rendering**: Remotion combines everything into final MP4
+6. **Cloud Storage**: Completed video uploaded to S3 with public access
+7. **Status Updates**: Frontend polls for completion and shows download link
 
 ## 🎯 Video Features
 

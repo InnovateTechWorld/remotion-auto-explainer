@@ -7,6 +7,9 @@ const PORT = process.env.PORT || 10000;
 const generate = require("./components/scriptGenerator.js");
 const generateVideo = require("./components/generateVideo.js");
 const cors = require("cors");
+const AWS = require('aws-sdk');
+const fs = require('fs');
+
 app.use(
   cors({
     origin: "*", // Allow all origins
@@ -14,6 +17,92 @@ app.use(
 );
 
 app.use(express.json());
+
+// Configure AWS S3
+const s3 = new AWS.S3({
+  region: process.env.AWS_REGION || 'us-east-1'
+});
+
+const BUCKET_NAME = process.env.S3_BUCKET_NAME || 'your-video-bucket-name';
+
+// In-memory job storage (use Redis/database for production)
+const jobs = new Map();
+
+// Cleanup old jobs (run every hour)
+setInterval(() => {
+  const oneHourAgo = Date.now() - (60 * 60 * 1000);
+  for (const [jobId, job] of jobs.entries()) {
+    if (job.createdAt < oneHourAgo) {
+      jobs.delete(jobId);
+    }
+  }
+}, 60 * 60 * 1000);
+
+// Async video generation function
+async function generateVideoAsync(script, prompt, jobId) {
+  try {
+    console.log(`Starting async video generation for job ${jobId}`);
+
+    // Update job status
+    jobs.set(jobId, {
+      status: 'processing',
+      message: 'Generating video...',
+      createdAt: Date.now()
+    });
+
+    // Generate video
+    const videoPath = await generateVideo({ script, prompt });
+
+    if (!videoPath) {
+      throw new Error('Video generation failed');
+    }
+
+    console.log(`Video generated successfully for job ${jobId}: ${videoPath}`);
+
+    // Upload to S3
+    const videoKey = `videos/${jobId}.mp4`;
+    const fileStream = fs.createReadStream(videoPath);
+
+    console.log(`Uploading video to S3 for job ${jobId}`);
+
+    await s3.upload({
+      Bucket: BUCKET_NAME,
+      Key: videoKey,
+      Body: fileStream,
+      ContentType: 'video/mp4',
+      ACL: 'public-read'
+    }).promise();
+
+    // Generate download URL
+    const downloadUrl = `https://${BUCKET_NAME}.s3.amazonaws.com/${videoKey}`;
+
+    // Update job status
+    jobs.set(jobId, {
+      status: 'completed',
+      message: 'Video generated successfully!',
+      downloadUrl: downloadUrl,
+      createdAt: Date.now()
+    });
+
+    // Clean up local file
+    try {
+      fs.unlinkSync(videoPath);
+      console.log(`Cleaned up local video file for job ${jobId}`);
+    } catch (cleanupError) {
+      console.warn(`Could not clean up video file for job ${jobId}:`, cleanupError.message);
+    }
+
+    console.log(`Video generation completed for job ${jobId}`);
+
+  } catch (error) {
+    console.error(`Error generating video for job ${jobId}:`, error);
+    jobs.set(jobId, {
+      status: 'error',
+      message: error.message || 'Video generation failed',
+      createdAt: Date.now()
+    });
+  }
+}
 // generate acess token using the refresh token
 
 app.get("/", async (req, res) => {
@@ -31,30 +120,20 @@ app.get("/health", (req, res) => {
 });
 
 app.post("/generate", async (req, res) => {
-  // Set headers for streaming response
-  res.setHeader('Content-Type', 'application/json');
-  res.setHeader('Transfer-Encoding', 'chunked');
-
   try {
     const { prompt } = req.body;
 
     // Input validation
     if (!prompt || typeof prompt !== 'string') {
-      res.write(JSON.stringify({ status: 'error', message: "Prompt is required and must be a string" }) + '\n');
-      res.end();
-      return;
+      return res.status(400).json({ status: 'error', message: "Prompt is required and must be a string" });
     }
 
     if (prompt.trim().length < 3) {
-      res.write(JSON.stringify({ status: 'error', message: "Prompt must be at least 3 characters long" }) + '\n');
-      res.end();
-      return;
+      return res.status(400).json({ status: 'error', message: "Prompt must be at least 3 characters long" });
     }
 
     if (prompt.length > 500) {
-      res.write(JSON.stringify({ status: 'error', message: "Prompt must be less than 500 characters" }) + '\n');
-      res.end();
-      return;
+      return res.status(400).json({ status: 'error', message: "Prompt must be less than 500 characters" });
     }
 
     console.log("Generating script for prompt:", prompt);
@@ -69,111 +148,59 @@ app.post("/generate", async (req, res) => {
 
     if (!script || !Array.isArray(script) || script.length === 0) {
       console.log("Script generation failed or returned invalid data");
-      res.write(JSON.stringify({ status: 'error', message: "Failed to generate video script. Please try a different prompt." }) + '\n');
-      res.end();
-      return;
+      return res.status(400).json({ status: 'error', message: "Failed to generate video script. Please try a different prompt." });
     }
 
     console.log("Script generated with", script.length, "scenes");
 
-    // Send progress update if client is still connected
-    if (res.writable) {
-      res.write(JSON.stringify({ status: 'progress', message: 'Script generated. Generating video...' }) + '\n');
-    }
+    // Generate unique job ID
+    const jobId = `job_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-    // Generate video with timeout
-    const videoPath = await Promise.race([
-      generateVideo({ script, prompt }),
-      new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Video generation timeout')), 300000) // 5 minutes
-      )
-    ]);
+    // Initialize job status
+    jobs.set(jobId, {
+      status: 'queued',
+      message: 'Video generation queued...',
+      createdAt: Date.now()
+    });
 
-    if (!videoPath) {
-      console.log("Video generation failed");
-      res.write(JSON.stringify({ status: 'error', message: "Video generation failed. Please try again." }) + '\n');
-      res.end();
-      return;
-    }
+    // Start async video generation
+    generateVideoAsync(script, prompt, jobId);
 
-    console.log("Video generated successfully:", videoPath);
-
-    // Check if file exists and get its size
-    const fs = require('fs');
-    if (!fs.existsSync(videoPath)) {
-      console.error("Generated video file not found:", videoPath);
-      res.write(JSON.stringify({ status: 'error', message: "Video file was not created properly" }) + '\n');
-      res.end();
-      return;
-    }
-
-    const stats = fs.statSync(videoPath);
-    if (stats.size === 0) {
-      console.error("Generated video file is empty:", videoPath);
-      fs.unlinkSync(videoPath); // Clean up empty file
-      res.write(JSON.stringify({ status: 'error', message: "Generated video file is empty" }) + '\n');
-      res.end();
-      return;
-    }
-
-    console.log("Video file size:", stats.size, "bytes");
-
-    // Check if client is still connected
-    if (!res.writable) {
-      console.log("Client disconnected, cleaning up video file");
-      try {
-        fs.unlinkSync(videoPath);
-      } catch (cleanupError) {
-        console.warn("Could not clean up video file:", cleanupError.message);
-      }
-      return; // Exit without sending response
-    }
-
-    // Read the video file and send it directly
-    const videoBuffer = fs.readFileSync(videoPath);
-
-    // Clean up the file after reading
-    try {
-      fs.unlinkSync(videoPath);
-      console.log("Cleaned up video file:", videoPath);
-    } catch (cleanupError) {
-      console.warn("Could not clean up video file:", cleanupError.message);
-    }
-
-    // Send progress update before file download
-    if (res.writable) {
-      res.write(JSON.stringify({ status: 'progress', message: 'Video ready. Downloading...' }) + '\n');
-    }
-
-    // Change content type for file download
-    res.setHeader('Content-Type', 'video/mp4');
-    res.setHeader('Content-Disposition', `attachment; filename="educational_video_${prompt.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30)}.mp4"`);
-    res.setHeader('Content-Length', videoBuffer.length);
-    res.setHeader('Cache-Control', 'no-cache');
-
-    // Send the video file
-    res.end(videoBuffer);
+    // Return job ID immediately
+    res.json({
+      status: 'queued',
+      message: 'Video generation started. Check status using the job ID.',
+      jobId: jobId
+    });
 
   } catch (error) {
-    console.error("Error generating video:", error);
+    console.error("Error starting video generation:", error);
 
     // Provide more specific error messages
-    let errorMessage = "An unexpected error occurred while generating the video";
+    let errorMessage = "An unexpected error occurred while starting video generation";
 
     if (error.message.includes('timeout')) {
-      errorMessage = "Video generation timed out. Please try a simpler prompt.";
+      errorMessage = "Script generation timed out. Please try a simpler prompt.";
     } else if (error.message.includes('API')) {
       errorMessage = "AI service temporarily unavailable. Please try again later.";
     } else if (error.message.includes('quota')) {
       errorMessage = "API quota exceeded. Please try again later.";
     }
 
-    // Send error as streaming response
-    if (res.writable) {
-      res.write(JSON.stringify({ status: 'error', message: errorMessage }) + '\n');
-    }
-    res.end();
+    res.status(500).json({ status: 'error', message: errorMessage });
   }
+});
+
+// Status endpoint to check job progress
+app.get("/status/:jobId", (req, res) => {
+  const { jobId } = req.params;
+
+  const job = jobs.get(jobId);
+  if (!job) {
+    return res.status(404).json({ status: 'error', message: 'Job not found' });
+  }
+
+  res.json(job);
 });
 // Start Server
 app.listen(PORT, () => {

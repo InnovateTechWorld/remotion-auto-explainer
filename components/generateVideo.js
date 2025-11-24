@@ -32,9 +32,15 @@ async function generateImage(drawing_description) {
         - MARGINS: Leave generous white space around all elements to prevent cutoff and enhance visual appeal.
         - SCALING: Size all elements to fit comfortably within their designated areas without overflow.
         - MODERN 3D EFFECTS: Add subtle shadows, highlights, and 3D depth to make diagrams look professional and engaging.
+        - DONT OVERCROWD: Avoid clutter - keep diagrams clean and focused on key elements only.
+        - CONSISTENCY: Maintain a consistent modern 3D style across both diagrams.
+        - NO TEXTURE: Use smooth, clean surfaces without texture for a sleek modern look.
+        - USE MODERN TYPOGRAPHY: Select contemporary sans-serif fonts with NO SHADOWS IN TEXT AT ALL.
         - NO EMOJIS, NO logos, NO additional decorative elements unless explicitly requested in the description.
         - BACKGROUND MUST BE 100% PURE WHITE - no variations, gradients, or dark areas.
         - Ensure the entire image is highly educational and matches the drawing description exactly.
+        - HIGH QUALITY: Generate crisp, professional-quality images with sharp edges and clear details
+        - RESOLUTION: Ensure all elements are rendered at high resolution for the 1280x720 canvas
         `;
 
   const response = await ai.models.generateContent({

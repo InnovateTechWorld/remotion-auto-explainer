@@ -99,3 +99,7 @@ Thumbs.db
 *.wav
 
 # ...existing code...
+# Elastic Beanstalk Files
+.elasticbeanstalk/*
+!.elasticbeanstalk/*.cfg.yml
+!.elasticbeanstalk/*.global.yml
