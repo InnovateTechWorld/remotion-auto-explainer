@@ -15,6 +15,18 @@ const s3 = new AWS.S3({
   region: process.env.AWS_REGION || 'us-east-1'
 });
 
+// Upload a single file to S3
+async function uploadFileToS3(filePath, bucketName, s3Key) {
+  const fileStream = fs.createReadStream(filePath);
+  await s3.upload({
+    Bucket: bucketName,
+    Key: s3Key,
+    Body: fileStream,
+    ACL: 'public-read'
+  }).promise();
+  console.log(`Uploaded ${path.basename(filePath)} to S3: ${s3Key}`);
+}
+
 // Function to upload bundle to S3 recursively
 async function uploadBundleToS3(bundlePath, bucketName, bundleKey) {
   console.log(`Uploading bundle to S3: ${bundleKey}`);
@@ -28,10 +40,8 @@ async function uploadBundleToS3(bundlePath, bucketName, bundleKey) {
       const stat = await fs.stat(itemPath);
 
       if (stat.isDirectory()) {
-        // Recursively upload directory
         await uploadPath(itemPath, itemKey);
       } else {
-        // Upload file
         const fileStream = fs.createReadStream(itemPath);
         await s3.upload({
           Bucket: bucketName,
@@ -162,7 +172,7 @@ async function generateVideo({ script, prompt }) {
             if (fs.existsSync(imagePath)) {
               const stats = fs.statSync(imagePath);
               if (stats.size > 0) {
-                updatedScene.imagePath = `/images/${imageFilename}`;
+                updatedScene.imagePath = imageFilename; // Just filename, not path
                 console.log(`Image for scene ${i} generated successfully (${stats.size} bytes)`);
               } else {
                 console.warn(`Image for scene ${i} is empty, skipping`);
@@ -183,14 +193,43 @@ async function generateVideo({ script, prompt }) {
 
       const finalScript = scriptWithDuration;
 
-      inputProps = { script: finalScript, audioPath: `/audio/${audioFilename}`, durationInFrames: totalFramesWithLogo };
+      inputProps = { script: finalScript, audioPath: audioFilename, durationInFrames: totalFramesWithLogo };
     } catch (audioError) {
       console.error("Failed to generate full audio:", audioError.message);
       throw audioError;
     }
     const sanitizedPrompt = prompt.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 50);
     const timestamp = Date.now();
-    const outputLocation = `s3://${process.env.S3_BUCKET_NAME}/videos/${sanitizedPrompt}_${timestamp}.mp4`;
+
+    // Upload audio file to S3
+    const audioS3Key = `assets/audio/${audioFilename}`;
+    await uploadFileToS3(audioOutputPath, process.env.S3_BUCKET_NAME, audioS3Key);
+
+    // Upload image files to S3
+    for (let i = 0; i < script.length; i++) {
+      const imageFilename = `scene_${i}.png`;
+      const imagePath = path.join(imageDir, imageFilename);
+      if (fs.existsSync(imagePath)) {
+        const imageS3Key = `assets/images/${imageFilename}`;
+        await uploadFileToS3(imagePath, process.env.S3_BUCKET_NAME, imageS3Key);
+      }
+    }
+
+    // Upload logo to S3
+    const logoPath = path.join(__dirname, "../public/Wekoya_logo_mark.svg");
+    if (await fs.pathExists(logoPath)) {
+      await uploadFileToS3(logoPath, process.env.S3_BUCKET_NAME, 'assets/Wekoya_logo_mark.svg');
+    }
+
+    const outputLocation = {
+      type: "s3",
+      s3OutputProvider: {
+        endpoint: `https://s3.${process.env.AWS_REGION}.amazonaws.com`,
+        bucketName: process.env.S3_BUCKET_NAME,
+        key: `videos/${sanitizedPrompt}_${timestamp}.mp4`,
+        region: process.env.AWS_REGION || "us-east-1",
+      },
+    };
 
     // Now bundle AFTER audio is generated
     console.log("Bundling Remotion project...");
@@ -232,12 +271,7 @@ async function generateVideo({ script, prompt }) {
     await fs.ensureDir(bundleImageDir);
     await fs.copy(imageDir, bundleImageDir, { overwrite: true });
 
-    // Copy logo file to the bundle's public folder
-    const logoPath = path.join(__dirname, "../public/Wekoya_logo_mark.svg");
-    const bundleLogoPath = path.join(bundleLocation, "public", "Wekoya_logo_mark.svg");
-    if (await fs.pathExists(logoPath)) {
-      await fs.copy(logoPath, bundleLogoPath, { overwrite: true });
-    }
+    // Logo already uploaded to S3 above
 
     // Define composition directly (no selectComposition needed for Lambda)
     const composition = {

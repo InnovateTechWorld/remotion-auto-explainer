@@ -2,7 +2,6 @@ import React from "react";
 import {
   AbsoluteFill,
   Audio,
-  staticFile,
   Sequence,
 } from "remotion";
 
@@ -12,46 +11,56 @@ const MyVideo: React.FC<{ script: any[]; audioPath: string; durationInFrames: nu
     return <AbsoluteFill style={{ backgroundColor: "white" }} />;
   }
 
-  // Calculate frames per scene (assuming 4 scenes)
+  // S3 bucket name - should match your bucket
+  const bucketName = process.env.S3_BUCKET_NAME || "ai-videos-bucket-906510884846";
+
+  // Construct S3 URLs
+  const audioUrl = `https://${bucketName}.s3.amazonaws.com/assets/audio/${audioPath}`;
+  const logoUrl = `https://${bucketName}.s3.amazonaws.com/assets/Wekoya_logo_mark.svg`;
+
+  // Calculate frames per scene
   const framesPerScene = Math.floor(durationInFrames / script.length);
 
   return (
     <div style={{ flex: 1, backgroundColor: 'white' }}>
-      {audioPath && <Audio src={staticFile(audioPath)} />}
-      {script.map((scene: any, index: number) => (
-        <Sequence
-          key={index}
-          from={index * framesPerScene}
-          durationInFrames={framesPerScene}
-        >
-          <AbsoluteFill>
-            {/* Background image */}
+      {audioPath && <Audio src={audioUrl} />}
+      {script.map((scene: any, index: number) => {
+        const imageUrl = `https://${bucketName}.s3.amazonaws.com/assets/images/${scene.imagePath}`;
+        return (
+          <Sequence
+            key={index}
+            from={index * framesPerScene}
+            durationInFrames={framesPerScene}
+          >
             <AbsoluteFill>
-              <img
-                src={staticFile(scene.imagePath)}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'contain', // Changed from 'cover' to 'contain' to fit within screen
-                  backgroundColor: 'white', // Ensure white background
-                }}
-              />
-            </AbsoluteFill>
+              {/* Background image */}
+              <AbsoluteFill>
+                <img
+                  src={imageUrl}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'contain',
+                    backgroundColor: 'white',
+                  }}
+                />
+              </AbsoluteFill>
 
-            {/* Logo - moved to top */}
-            <AbsoluteFill style={{ justifyContent: 'flex-start', alignItems: 'flex-start', padding: 20 }}>
-              <img
-                src={staticFile('/Wekoya_logo_mark.svg')}
-                style={{
-                  width: 100,
-                  height: 100,
-                  opacity: 0.8,
-                }}
-              />
+              {/* Logo - moved to top */}
+              <AbsoluteFill style={{ justifyContent: 'flex-start', alignItems: 'flex-start', padding: 20 }}>
+                <img
+                  src={logoUrl}
+                  style={{
+                    width: 100,
+                    height: 100,
+                    opacity: 0.8,
+                  }}
+                />
+              </AbsoluteFill>
             </AbsoluteFill>
-          </AbsoluteFill>
-        </Sequence>
-      ))}
+          </Sequence>
+        );
+      })}
     </div>
   );
 };
