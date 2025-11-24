@@ -6,6 +6,37 @@ const fs = require("fs-extra");
 const { getAudioDurationInSeconds } = require("get-audio-duration");
 const { generateAudio } = require("./generateAudio");
 const { GoogleGenAI } = require("@google/genai");
+const AWS = require('aws-sdk');
+
+// Configure AWS S3
+const s3 = new AWS.S3({
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  region: process.env.AWS_REGION || 'us-east-1'
+});
+
+// Function to upload bundle to S3
+async function uploadBundleToS3(bundlePath, bucketName, bundleKey) {
+  console.log(`Uploading bundle to S3: ${bundleKey}`);
+  const files = await fs.readdir(bundlePath);
+
+  for (const file of files) {
+    const filePath = path.join(bundlePath, file);
+    const fileStream = fs.createReadStream(filePath);
+    const s3Key = `${bundleKey}/${file}`;
+
+    await s3.upload({
+      Bucket: bucketName,
+      Key: s3Key,
+      Body: fileStream,
+      ACL: 'public-read' // Make bundle public for Lambda access
+    }).promise();
+
+    console.log(`Uploaded ${file} to S3`);
+  }
+
+  console.log(`Bundle uploaded to S3: ${bundleKey}`);
+}
 
 async function generateImage(drawing_description) {
   const ai = new GoogleGenAI({
@@ -165,6 +196,18 @@ async function generateVideo({ script, prompt }) {
       throw new Error(`Failed to bundle Remotion project: ${bundleError.message}`);
     }
 
+    // Upload bundle to S3 for Lambda access
+    const bundleKey = `bundles/${Date.now()}`;
+    try {
+      await uploadBundleToS3(bundleLocation, process.env.S3_BUCKET_NAME, bundleKey);
+      console.log("Bundle uploaded to S3 successfully");
+    } catch (uploadError) {
+      console.error("Bundle upload failed:", uploadError);
+      throw new Error(`Failed to upload bundle to S3: ${uploadError.message}`);
+    }
+
+    const serveUrl = `https://${process.env.S3_BUCKET_NAME}.s3.amazonaws.com/${bundleKey}/`;
+
     // Ensure public folder exists in bundle
     const bundlePublicDir = path.join(bundleLocation, "public");
     await fs.ensureDir(bundlePublicDir);
@@ -200,7 +243,7 @@ async function generateVideo({ script, prompt }) {
   const renderProgress = await renderMediaOnLambda({
     functionName: "remotion-render-4-0-286-mem3008mb-disk2048mb-120sec", // Updated to match deployed name
     composition,
-    serveUrl: bundleLocation,
+    serveUrl: serveUrl,
     codec: "h264",
     outputLocation,
     inputProps,
