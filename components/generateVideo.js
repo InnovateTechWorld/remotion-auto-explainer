@@ -15,26 +15,36 @@ const s3 = new AWS.S3({
   region: process.env.AWS_REGION || 'us-east-1'
 });
 
-// Function to upload bundle to S3
+// Function to upload bundle to S3 recursively
 async function uploadBundleToS3(bundlePath, bucketName, bundleKey) {
   console.log(`Uploading bundle to S3: ${bundleKey}`);
-  const files = await fs.readdir(bundlePath);
 
-  for (const file of files) {
-    const filePath = path.join(bundlePath, file);
-    const fileStream = fs.createReadStream(filePath);
-    const s3Key = `${bundleKey}/${file}`;
+  async function uploadPath(currentPath, currentKey) {
+    const items = await fs.readdir(currentPath);
 
-    await s3.upload({
-      Bucket: bucketName,
-      Key: s3Key,
-      Body: fileStream,
-      ACL: 'public-read' // Make bundle public for Lambda access
-    }).promise();
+    for (const item of items) {
+      const itemPath = path.join(currentPath, item);
+      const itemKey = `${currentKey}/${item}`;
+      const stat = await fs.stat(itemPath);
 
-    console.log(`Uploaded ${file} to S3`);
+      if (stat.isDirectory()) {
+        // Recursively upload directory
+        await uploadPath(itemPath, itemKey);
+      } else {
+        // Upload file
+        const fileStream = fs.createReadStream(itemPath);
+        await s3.upload({
+          Bucket: bucketName,
+          Key: itemKey,
+          Body: fileStream,
+          ACL: 'public-read'
+        }).promise();
+        console.log(`Uploaded ${item} to S3`);
+      }
+    }
   }
 
+  await uploadPath(bundlePath, bundleKey);
   console.log(`Bundle uploaded to S3: ${bundleKey}`);
 }
 
