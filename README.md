@@ -41,7 +41,7 @@ gcloud run deploy $SERVICE_NAME \
   --concurrency 1 \
   --allow-unauthenticated \
   --timeout 15m \
-  --set-env-vars "GEMINI_API_KEY=your_gemini_api_key_here,AWS_REGION=us-east-1,S3_BUCKET_NAME=your-video-bucket-name,AWS_ACCESS_KEY_ID=your_aws_key,AWS_SECRET_ACCESS_KEY=your_aws_secret,NODE_ENV=production,TEMP_DIR=/tmp,PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true,PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome" \
+  --set-env-vars "GEMINI_API_KEY=your_gemini_api_key_here,AWS_REGION=us-east-1,S3_BUCKET_NAME=your-video-bucket-name,AWS_ACCESS_KEY_ID=your_aws_key,AWS_SECRET_ACCESS_KEY=your_aws_secret,NODE_ENV=production,TEMP_DIR=/tmp" \
   --service-account auto-shorts-sa@$PROJECT_ID.iam.gserviceaccount.com
 ```
 
@@ -78,10 +78,36 @@ curl -X POST "$SERVICE_URL/generate" \
 gcloud logs read --project $PROJECT_ID --limit 50 --service=$SERVICE_NAME
 ```
 
-Troubleshooting
-- If rendering fails due to Chrome, ensure the Docker image contains google-chrome and set:
-  PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true and PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome
-- If uploads fail, verify S3 credentials / bucket policy and network egress settings.
-- Use Cloud Run logs to diagnose memory/timeouts and increase memory or timeout if needed.
+### Remotion Lambda Deployment (Alternative)
 
-Deployed on: Cloud Run
+For better performance and scalability, use Remotion Lambda for video rendering:
+
+1. **Install Lambda Package** (already done):
+   ```bash
+   npm install @remotion/lambda
+   ```
+
+2. **Deploy Lambda Function**:
+   ```bash
+   npx remotion lambda functions deploy --region=us-east-1
+   ```
+
+3. **Update Environment Variables**:
+   Add AWS Lambda permissions to your Cloud Run service account or use separate AWS credentials.
+
+4. **Benefits**:
+   - Faster rendering (Lambda optimized for Remotion)
+   - No Chrome setup required
+   - Better scalability
+   - Lower costs for video rendering
+
+5. **Cost Comparison**:
+   - Cloud Run + Local Rendering: ~$6-20/month for 50 videos
+   - Cloud Run + Lambda Rendering: ~$3-8/month for 50 videos
+
+Troubleshooting
+- If Lambda deployment fails, ensure AWS credentials have Lambda permissions
+- If rendering fails, check Lambda function logs in AWS CloudWatch
+- For timeouts, Lambda has built-in timeout handling
+
+Deployed on: Cloud Run + AWS Lambda

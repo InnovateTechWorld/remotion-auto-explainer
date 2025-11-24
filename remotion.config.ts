@@ -9,4 +9,5 @@ import { Config } from "@remotion/cli/config";
 
 Config.setVideoImageFormat("png");
 Config.setOverwriteOutput(true);
-Config.setDelayRenderTimeoutInMilliseconds(120000);
+Config.setDelayRenderTimeoutInMilliseconds(300000); // 5 minutes for Lambda rendering
+Config.setConcurrency(1); // Reduce concurrency for Lambda memory optimization

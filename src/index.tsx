@@ -18,8 +18,8 @@ registerRoot(() => {
         return {
           durationInFrames: props.durationInFrames as number, // Explicitly cast to number
           fps: 30, // Set your desired fps
-          width: 1920,
-          height: 1080,
+          width: 1280, // Reduced from 1920 for Lambda memory optimization
+          height: 720, // Reduced from 1080 for Lambda memory optimization
         };
       }}
     />

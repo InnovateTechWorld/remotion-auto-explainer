@@ -1,6 +1,6 @@
 
 const { bundle } = require("@remotion/bundler");
-const { renderMedia, selectComposition } = require("@remotion/renderer");
+const { renderMediaOnLambda, selectComposition } = require("@remotion/lambda");
 const path = require("path");
 const fs = require("fs-extra");
 const { getAudioDurationInSeconds } = require("get-audio-duration");
@@ -192,44 +192,17 @@ async function generateVideo({ script, prompt }) {
       inputProps,
     });
 
-    console.log("Starting video render...");
+    console.log("Starting video render on Lambda...");
     try {
-      await renderMedia({
+      const renderProgress = await renderMediaOnLambda({
+        functionName: "remotion-render",
         composition,
         serveUrl: bundleLocation,
         codec: "h264",
         outputLocation,
         inputProps,
-        crf: 35, // Increased further for lower quality
-        pixelFormat: "yuv420p",
-        concurrency: 1, // Keep at 1 to avoid overloading
-        imageFormat: "jpeg", // Ensure JPEG output
-        // Chrome flags for Cloud Run compatibility
-        chromiumOptions: {
-          args: [
-            "--no-sandbox",
-            "--disable-dev-shm-usage",
-            "--disable-gpu",
-            "--disable-software-rasterizer",
-            "--disable-background-timer-throttling",
-            "--disable-backgrounding-occluded-windows",
-            "--disable-renderer-backgrounding",
-            "--disable-features=TranslateUI",
-            "--disable-ipc-flooding-protection",
-            "--disable-extensions",
-            "--disable-hang-monitor",
-            "--disable-prompt-on-repost",
-            "--force-color-profile=srgb",
-            "--metrics-recording-only",
-            "--no-first-run",
-            "--enable-automation",
-            "--password-store=basic",
-            "--use-mock-keychain",
-            "--headless=new",
-            "--disable-web-security",
-            "--disable-features=VizDisplayCompositor"
-          ]
-        }
+        region: process.env.AWS_REGION || "us-east-1",
+        // Lambda handles Chrome automatically - no chromiumOptions needed
       });
 
       // Verify the output file was created
