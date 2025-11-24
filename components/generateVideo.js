@@ -197,16 +197,15 @@ async function generateVideo({ script, prompt }) {
 
     console.log("Starting video render on Lambda...");
     try {
-      const renderProgress = await renderMediaOnLambda({
-        functionName: "remotion-render",
-        composition,
-        serveUrl: bundleLocation,
-        codec: "h264",
-        outputLocation,
-        inputProps,
-        region: process.env.AWS_REGION || "us-east-1",
-        // Lambda handles Chrome automatically - no chromiumOptions needed
-      });
+  const renderProgress = await renderMediaOnLambda({
+    functionName: "remotion-render-4-0-286-mem3008mb-disk2048mb-120sec", // Updated to match deployed name
+    composition,
+    serveUrl: bundleLocation,
+    codec: "h264",
+    outputLocation,
+    inputProps,
+    region: process.env.AWS_REGION || "us-east-1",
+  });
 
       // Verify the output file was created
       if (!fs.existsSync(outputLocation)) {
