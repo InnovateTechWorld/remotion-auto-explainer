@@ -149,7 +149,7 @@ async function generateVideo({ script, prompt }) {
     }
     const sanitizedPrompt = prompt.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 50);
     const timestamp = Date.now();
-    const outputLocation = path.join(outputDir, `${sanitizedPrompt}_${timestamp}.mp4`);
+    const outputLocation = `s3://${process.env.S3_BUCKET_NAME}/videos/${sanitizedPrompt}_${timestamp}.mp4`;
 
     // Now bundle AFTER audio is generated
     console.log("Bundling Remotion project...");
@@ -207,18 +207,12 @@ async function generateVideo({ script, prompt }) {
     region: process.env.AWS_REGION || "us-east-1",
   });
 
-      // Verify the output file was created
-      if (!fs.existsSync(outputLocation)) {
-        throw new Error('Video output file was not created');
-      }
+      // Lambda writes directly to S3 - no need to check local file
+      console.log("Video rendered successfully on Lambda:", outputLocation);
 
-      const outputStats = fs.statSync(outputLocation);
-      if (outputStats.size === 0) {
-        throw new Error('Video output file is empty');
-      }
-
-      console.log("Video rendered successfully:", outputLocation, `(${outputStats.size} bytes)`);
-      return outputLocation;
+      // Return S3 URL for download
+      const downloadUrl = `https://${process.env.S3_BUCKET_NAME}.s3.amazonaws.com/videos/${sanitizedPrompt}_${timestamp}.mp4`;
+      return downloadUrl;
 
     } catch (renderError) {
       console.error("Video rendering failed:", renderError.message);

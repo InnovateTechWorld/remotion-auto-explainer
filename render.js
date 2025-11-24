@@ -50,31 +50,16 @@ async function generateVideoAsync(script, prompt, jobId) {
       createdAt: Date.now()
     });
 
-    // Generate video
-    const videoPath = await generateVideo({ script, prompt });
+    // Generate video (now returns S3 URL directly)
+    const downloadUrl = await generateVideo({ script, prompt });
 
-    if (!videoPath) {
+    if (!downloadUrl) {
       throw new Error('Video generation failed');
     }
 
-    console.log(`Video generated successfully for job ${jobId}: ${videoPath}`);
+    console.log(`Video generated successfully for job ${jobId}: ${downloadUrl}`);
 
-    // Upload to S3
-    const videoKey = `videos/${jobId}.mp4`;
-    const fileStream = fs.createReadStream(videoPath);
-
-    console.log(`Uploading video to S3 for job ${jobId}`);
-
-    await s3.upload({
-      Bucket: BUCKET_NAME,
-      Key: videoKey,
-      Body: fileStream,
-      ContentType: 'video/mp4',
-      ACL: 'public-read'
-    }).promise();
-
-    // Generate download URL
-    const downloadUrl = `https://${BUCKET_NAME}.s3.amazonaws.com/${videoKey}`;
+    // No S3 upload needed - Lambda already uploaded directly to S3
 
     // Update job status
     jobs.set(jobId, {
@@ -83,14 +68,6 @@ async function generateVideoAsync(script, prompt, jobId) {
       downloadUrl: downloadUrl,
       createdAt: Date.now()
     });
-
-    // Clean up local file
-    try {
-      fs.unlinkSync(videoPath);
-      console.log(`Cleaned up local video file for job ${jobId}`);
-    } catch (cleanupError) {
-      console.warn(`Could not clean up video file for job ${jobId}:`, cleanupError.message);
-    }
 
     console.log(`Video generation completed for job ${jobId}`);
 
