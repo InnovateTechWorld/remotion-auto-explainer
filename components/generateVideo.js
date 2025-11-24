@@ -1,7 +1,6 @@
 
 const { bundle } = require("@remotion/bundler");
 const { renderMediaOnLambda } = require("@remotion/lambda");
-const { selectComposition } = require("@remotion/renderer");
 const path = require("path");
 const fs = require("fs-extra");
 const { getAudioDurationInSeconds } = require("get-audio-duration");
@@ -187,11 +186,14 @@ async function generateVideo({ script, prompt }) {
       await fs.copy(logoPath, bundleLogoPath, { overwrite: true });
     }
 
-    const composition = await selectComposition({
-      serveUrl: bundleLocation,
+    // Define composition directly (no selectComposition needed for Lambda)
+    const composition = {
       id: compositionId,
-      inputProps,
-    });
+      width: 1280,
+      height: 720,
+      fps: 30,
+      durationInFrames: inputProps.durationInFrames,
+    };
 
     console.log("Starting video render on Lambda...");
     try {

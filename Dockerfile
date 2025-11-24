@@ -22,8 +22,7 @@ RUN npm ci --only=production
 # Copy application files
 COPY . .
 
-# Ensure Chrome is installed for Remotion
-RUN npx remotion browser ensure
+# Chrome not needed - Lambda handles rendering
 
 # Create temp directory for in-memory operations
 RUN mkdir -p /tmp
