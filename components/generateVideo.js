@@ -1,6 +1,7 @@
 
 const { bundle } = require("@remotion/bundler");
-const { renderMediaOnLambda, selectComposition } = require("@remotion/lambda");
+const { renderMediaOnLambda } = require("@remotion/lambda");
+const { selectComposition } = require("@remotion/renderer");
 const path = require("path");
 const fs = require("fs-extra");
 const { getAudioDurationInSeconds } = require("get-audio-duration");
