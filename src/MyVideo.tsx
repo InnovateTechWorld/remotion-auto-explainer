@@ -3,29 +3,27 @@ import {
   AbsoluteFill,
   Audio,
   Sequence,
+  Img,
 } from "remotion";
 
-const MyVideo: React.FC<{ script: any[]; audioPath: string; durationInFrames: number }> = ({ script, audioPath, durationInFrames }) => {
+const MyVideo: React.FC<{
+  script: any[];
+  audioPath: string;
+  logoPath: string;
+  durationInFrames: number;
+}> = ({ script, audioPath, logoPath, durationInFrames }) => {
   // Safety check
   if (!script || !Array.isArray(script)) {
     return <AbsoluteFill style={{ backgroundColor: "white" }} />;
   }
-
-  // S3 bucket name - should match your bucket
-  const bucketName = process.env.S3_BUCKET_NAME || "ai-videos-bucket-906510884846";
-
-  // Construct S3 URLs
-  const audioUrl = `https://${bucketName}.s3.amazonaws.com/assets/audio/${audioPath}`;
-  const logoUrl = `https://${bucketName}.s3.amazonaws.com/assets/Wekoya_logo_mark.svg`;
 
   // Calculate frames per scene
   const framesPerScene = Math.floor(durationInFrames / script.length);
 
   return (
     <div style={{ flex: 1, backgroundColor: 'white' }}>
-      {audioPath && <Audio src={audioUrl} />}
+      {audioPath && <Audio src={audioPath} />}
       {script.map((scene: any, index: number) => {
-        const imageUrl = `https://${bucketName}.s3.amazonaws.com/assets/images/${scene.imagePath}`;
         return (
           <Sequence
             key={index}
@@ -35,8 +33,8 @@ const MyVideo: React.FC<{ script: any[]; audioPath: string; durationInFrames: nu
             <AbsoluteFill>
               {/* Background image */}
               <AbsoluteFill>
-                <img
-                  src={imageUrl}
+                <Img
+                  src={scene.imagePath}
                   style={{
                     width: '100%',
                     height: '100%',
@@ -48,8 +46,8 @@ const MyVideo: React.FC<{ script: any[]; audioPath: string; durationInFrames: nu
 
               {/* Logo - moved to top */}
               <AbsoluteFill style={{ justifyContent: 'flex-start', alignItems: 'flex-start', padding: 20 }}>
-                <img
-                  src={logoUrl}
+                <Img
+                  src={logoPath}
                   style={{
                     width: 100,
                     height: 100,

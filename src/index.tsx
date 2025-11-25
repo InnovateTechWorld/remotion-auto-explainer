@@ -12,6 +12,7 @@ registerRoot(() => {
       defaultProps={{
         script: [],
         audioPath: '',
+        logoPath: '',
         durationInFrames: 1800,
       }}
       calculateMetadata={async ({ props }) => {

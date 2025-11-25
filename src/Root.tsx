@@ -14,6 +14,7 @@ export const RemotionRoot: React.FC = () => {
         defaultProps={{
           script: [],
           audioPath: '',
+          logoPath: '',
           durationInFrames: 1
         }}
       />

@@ -193,33 +193,53 @@ async function generateVideo({ script, prompt }) {
 
       const finalScript = scriptWithDuration;
 
-      inputProps = { script: finalScript, audioPath: audioFilename, durationInFrames: totalFramesWithLogo };
+      // Upload assets to S3 and build S3 URLs
+      const timestamp = Date.now();
+      const assetsPrefix = `assets/${timestamp}`;
+      const bucketUrl = `https://${process.env.S3_BUCKET_NAME}.s3.amazonaws.com`;
+
+      // Upload audio to S3
+      const audioS3Key = `${assetsPrefix}/audio/${audioFilename}`;
+      await uploadFileToS3(audioOutputPath, process.env.S3_BUCKET_NAME, audioS3Key);
+      const audioS3Url = `${bucketUrl}/${audioS3Key}`;
+
+      // Upload images to S3 and update script with S3 URLs
+      const updatedScript = [];
+      for (let i = 0; i < finalScript.length; i++) {
+        const scene = finalScript[i];
+        if (scene.imagePath) {
+          const imageFilename = `scene_${i}.png`;
+          const imagePath = path.join(imageDir, imageFilename);
+          if (fs.existsSync(imagePath)) {
+            const imageS3Key = `${assetsPrefix}/images/${imageFilename}`;
+            await uploadFileToS3(imagePath, process.env.S3_BUCKET_NAME, imageS3Key);
+            scene.imagePath = `${bucketUrl}/${imageS3Key}`;
+          }
+        }
+        updatedScript.push(scene);
+      }
+
+      // Upload logo to S3
+      const logoPath = path.join(__dirname, "../public/Wekoya_logo_mark.svg");
+      let logoS3Url = "";
+      if (await fs.pathExists(logoPath)) {
+        const logoS3Key = `${assetsPrefix}/Wekoya_logo_mark.svg`;
+        await uploadFileToS3(logoPath, process.env.S3_BUCKET_NAME, logoS3Key);
+        logoS3Url = `${bucketUrl}/${logoS3Key}`;
+      }
+
+      inputProps = {
+        script: updatedScript,
+        audioPath: audioS3Url,
+        logoPath: logoS3Url,
+        durationInFrames: totalFramesWithLogo
+      };
     } catch (audioError) {
       console.error("Failed to generate full audio:", audioError.message);
       throw audioError;
     }
     const sanitizedPrompt = prompt.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 50);
     const timestamp = Date.now();
-
-    // Upload audio file to S3
-    const audioS3Key = `assets/audio/${audioFilename}`;
-    await uploadFileToS3(audioOutputPath, process.env.S3_BUCKET_NAME, audioS3Key);
-
-    // Upload image files to S3
-    for (let i = 0; i < script.length; i++) {
-      const imageFilename = `scene_${i}.png`;
-      const imagePath = path.join(imageDir, imageFilename);
-      if (fs.existsSync(imagePath)) {
-        const imageS3Key = `assets/images/${imageFilename}`;
-        await uploadFileToS3(imagePath, process.env.S3_BUCKET_NAME, imageS3Key);
-      }
-    }
-
-    // Upload logo to S3
-    const logoPath = path.join(__dirname, "../public/Wekoya_logo_mark.svg");
-    if (await fs.pathExists(logoPath)) {
-      await uploadFileToS3(logoPath, process.env.S3_BUCKET_NAME, 'assets/Wekoya_logo_mark.svg');
-    }
 
     const outputLocation = {
       type: "s3",
@@ -245,7 +265,9 @@ async function generateVideo({ script, prompt }) {
       throw new Error(`Failed to bundle Remotion project: ${bundleError.message}`);
     }
 
-    // Upload bundle to S3 for Lambda access
+    // Assets are now uploaded directly to S3, no need to copy to bundle
+
+    // Upload bundle to S3 for Lambda access (now includes assets)
     const bundleKey = `bundles/${Date.now()}`;
     try {
       await uploadBundleToS3(bundleLocation, process.env.S3_BUCKET_NAME, bundleKey);
@@ -256,22 +278,6 @@ async function generateVideo({ script, prompt }) {
     }
 
     const serveUrl = `https://${process.env.S3_BUCKET_NAME}.s3.amazonaws.com/${bundleKey}/`;
-
-    // Ensure public folder exists in bundle
-    const bundlePublicDir = path.join(bundleLocation, "public");
-    await fs.ensureDir(bundlePublicDir);
-
-    // Copy audio files to the bundle's public/audio folder
-    const bundleAudioDir = path.join(bundleLocation, "public", "audio");
-    await fs.ensureDir(bundleAudioDir);
-    await fs.copy(audioDir, bundleAudioDir, { overwrite: true });
-
-    // Copy image files to the bundle's public/images folder
-    const bundleImageDir = path.join(bundleLocation, "public", "images");
-    await fs.ensureDir(bundleImageDir);
-    await fs.copy(imageDir, bundleImageDir, { overwrite: true });
-
-    // Logo already uploaded to S3 above
 
     // Define composition directly (no selectComposition needed for Lambda)
     const composition = {
